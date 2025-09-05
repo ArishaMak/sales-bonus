@@ -119,7 +119,6 @@ function analyzeSalesData(data, options) { //основная функция
             if (!seller.produts_sales[item.sku]) {
             seller.produts_sales[item.sku] = 0;
             }
-            seller.produts_sales[item.sku] += item.quantity;
             //по артикулу товара увеличиваем его кол-во у продавца
             seller.produts_sales[item.sku] += item.quantity;
         })
