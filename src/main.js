@@ -26,7 +26,7 @@ function calculateBonusByProfit(index, total, seller) {
     const min_bonus = 0; //последний продавец
     if (index === 0) return seller.profit * max_bonus; //продавец, который оказался на первом(нулевом) месте в массиве
     else if (index === 1 || index === 2) return seller.profit * high_bonus;
-    else if (index === total - 1) return seller.profit * min_bonus;
+    else if (index === total - 1) return seller.profit * low_bonus;
     else return seller.profit * min_bonus;
 }
 
