@@ -4,6 +4,34 @@
  * @param _product карточка товара; продукция из коллекции data.products
  * @returns {number}
  */
+
+/**
+ * Функция для загрузки данных с сервера
+ * @returns {Promise<Object>} объект с данными (products, sellers, customers, purchase_records)
+ */
+async function loadDataFromServer() {
+  try {
+    // Запрашиваем все справочники
+    const catalogsResponse = await fetch('http://localhost:3000/api/catalogs');
+    const catalogs = await catalogsResponse.json();
+
+    // Запрашиваем записи о покупках
+    const recordsResponse = await fetch('http://localhost:3000/api/records?limit=1000');
+    const recordsData = await recordsResponse.json();
+
+    // Объединяем всё в один объект, чтобы analyzeSalesData понимала структуру
+    return {
+      products: catalogs.products,
+      sellers: catalogs.sellers,
+      customers: catalogs.customers,
+      purchase_records: recordsData.items
+    };
+  } catch (error) {
+    console.error("Ошибка загрузки данных с сервера:", error);
+    throw error;
+  }
+}
+
 function calculateSimpleRevenue(purchase, _product) {
    // @TODO: Расчет выручки от операции, учитывая скидку
     const {discount, sale_price, quantity} = purchase; //деструктуризация объекта; скидка, цена продажи, кол-во
@@ -167,3 +195,19 @@ function analyzeSalesData(data, options) { //основная функция
         bonus: +seller.bonus.toFixed(2)
     }))
 }
+// Основной запуск приложения
+(async function main() {
+  try {
+    const data = await loadDataFromServer();
+    
+    const results = analyzeSalesData(data, {
+      calculateRevenue: calculateSimpleRevenue,
+      calculateBonus: calculateBonusByProfit
+    });
+
+    console.log("Результаты анализа:", results);
+ 
+  } catch (err) {
+    console.error("Ошибка при выполнении анализа:", err);
+  }
+})();

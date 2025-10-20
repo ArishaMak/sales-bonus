@@ -1,0 +1,35 @@
+{
+  "name": "sales-bonus",
+  "version": "1.0.0",
+  "description": "https://github.com/ArishaMak/sales-bonus\r веб-приложение для анализа продаж и расчета бонусов продавцов",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon --watch backend --exec \"node backend/server.js\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArishaMak/sales-bonus.git"
+  },
+  "keywords": [
+    "express",
+    "sales",
+    "bonus",
+    "javascript",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ArishaMak/sales-bonus/issues"
+  },
+  "homepage": "https://github.com/ArishaMak/sales-bonus#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
