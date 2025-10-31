@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    font-src 'self' data:;
+    ">
+    <title>Анализ продаж магазина</title>
+    <link rel="stylesheet" href="../fonts/fonts.css" />
+    <link rel="stylesheet" href="../css/globals.css" />
+    <link rel="stylesheet" href="../css/variables.css" />
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/dark.css" />
+    <link rel="stylesheet" href="../css/light.css" />
+</head>
+<body class="page">
+     <!-- Единый layout-контейнер с фоном -->
+    <div class="page-layout">
+    <!-- ХЕДЕР -->
+    <header class="header">
+        <div class="wrapper flexbox middle">
+            <a href="/" class="logotype">
+                <img src="../images/logo.png" alt="Logo" class="logotype__img">
+                <span>ShopAnalytics</span>
+            </a>
+            <nav class="menu">
+                <a href="#dashboard">Дашборд</a>
+                <a href="#reports">Отчёты</a>
+                <a href="#settings">Настройки</a>
+            </nav>
+            <div class="header-actions flexbox" style="gap: 1em;">
+                <button class="btn btn-secondary">Войти</button>
+                <button class="btn btn-primary">Регистрация</button>
+            </div>
+            <button class="mobile-toggle" aria-label="Меню">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </header>
+    <!-- HERO + ФИЛЬТРЫ -->
+    <main class="hero">
+        <div class="cosmic-bg">
+            <div class="stars"></div>
+            <div class="stars2"></div>
+            <div class="stars3"></div>
+            <div class="background-planet"></div>
+            <div class="mars-rings-front"></div>
+            <div class="mars-rings"></div>
+        </div>
+        <!-- Контент -->
+        <div class="wrapper-hero">
+            <div class="wrapper">
+                <div class="h_part">
+                    <div class="h1_box h_part">
+                        <h1 class="h1" data-text="Анализ продаж в реальном времени">
+                            Анализ продаж в реальном времени
+                        </h1>
+                    </div>
+                    <p class="header__paragraph" style="font-size: 1.6em; color: var(--gray); max-width: 50ch; margin: 1.5em 0;">
+                        Аналитика выручки, бонусов и топ-продуктов по продавцам. Фильтруйте, ищите, экспортируйте.
+                    </p>
+                    <div>
+                        <a href="#filters" class="btn #resetFilters btn-primary">Начать анализ</a>
+                    </div>
+                </div>
+
+                <!-- ФИЛЬТРЫ -->
+                <section id="filters" class="filters-panel">
+                    <div class="filter-group">
+                        <input type="text" id="search" placeholder="Поиск по продавцу или покупателю" class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <select id="sellerFilter" class="filter-select"></select>
+                    </div>
+                    <div class="filter-group">
+                        <select id="skuFilter" class="filter-select"></select>
+                    </div>
+                    <div class="filter-group">
+                        <button id="applyFilters" class="btn btn-primary">Применить</button>
+                        <button id="resetFilters" class="btn btn-secondary">Сброс</button>
+                    </div>
+                </section>
+            </div>
+        </div>
+        <!-- РЕЗУЛЬТАТЫ -->
+        <section id="results" class="results-section">
+            <div class="wrapper">
+                <div class="section-header flexbox middle">
+                    <h2>Результаты анализа</h2>
+                    <div class="export-btn">
+                        <button class="btn btn-secondary">Экспорт CSV</button>
+                    </div>
+                </div>
+                <!-- Краткая сводка -->
+                <div id="summary" class="summary-cards">
+                    <!-- Карточки будут генерироваться JS -->
+                </div>
+                <!-- Таблица -->
+                <div class="table-container">
+                    <table id="reportTable" class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Продавец</th>
+                                <th>Выручка</th>
+                                <th>Прибыль</th>
+                                <th>Продаж</th>
+                                <th>Бонус</th>
+                                <th>Топ-товары</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Данные из JS -->
+                        </tbody>
+                    </table>
+                </div>
+                    <div id="pagination"></div>
+                </div>
+            </section>
+    </main>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

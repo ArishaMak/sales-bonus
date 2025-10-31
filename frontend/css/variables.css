@@ -1,0 +1,49 @@
+:root {
+  --white: #ffffff;
+  --purple: #8b5cf6;
+  --cyan: #06b6d4;
+  --gray: #a1a1aa;
+  --gray-light: #626969;
+  --main-font: 'Montserrat';
+  --maint-font2: 'IMB Plex mono', monospace;
+  --alt-font: 'Azeret Mono', monospace;
+  --black: #000000;
+  --dark-purple: #1a0d3a; /* Градиент фона */
+  /* Палитра Марса/оранжевого */
+  --mars-primary: #cc5500; /* Основной оранжевый Марса */
+  --mars-secondary: #b34700; /* Темнее */
+  --mars-dark: #662200; /* Очень темный */
+  --mars-light: #e65c00; /* Светлый акцент */
+  --mars-dust: #cc6600; /* Пыль/кратеры */
+  /* Акцентный оранжевый для ховеров/анимаций */
+  --orange: #ff6414; /* Базовый оранжевый (255,100,20) */
+  --orange-light: #ff7800; /* Для колец (255,120,0) */
+  --orange-dark: #ff4500; /* Для теней (255,69,0) */
+  /* Градиенты и тени */
+  --background-gradient: radial-gradient(ellipse at center, var(--dark-purple) 0%, var(--black) 100%);
+  --border-purple: rgba(139, 92, 246, 0.2); /* Для бордеров */
+  
+  --opacity-low: 0.2;
+  --opacity-medium: 0.6;
+  --opacity-high: 0.8;
+  /* Типографика и размеры */
+  --font-size-base: clamp(14px, 1.2vw, 18px);
+  --line-height-base: 1.5;
+  --border-radius-small: 6px;
+  --border-radius-medium: 0.6em;
+  --border-radius-large: 1em;
+  --padding-small: 0.8rem;
+  --padding-medium: 1.5em;
+  --btn-height: 48px;
+  --btn-padding: 0 1.5rem;
+  /* Фоны и backdrop (существующие + новые) */
+  --background: rgba(10, 10, 10, 0.95);
+  --border-for-bottom: var(--border-purple);
+  --backdrop-blur-small: blur(8px);
+  --backdrop-blur-medium: blur(12px);
+  /* Анимации */
+  --transition-base: all 0.3s ease;
+  --animation-duration-stars: 120s; /* Для колец и крупных звезд */
+  --animation-duration-mars: 10s; /* Дыхание планеты */
+  --animation-easing: ease-in-out;
+}

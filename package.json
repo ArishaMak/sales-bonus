@@ -1,12 +1,13 @@
 {
   "name": "sales-bonus",
   "version": "1.0.0",
+  "type": "module",
   "description": "https://github.com/ArishaMak/sales-bonus\r веб-приложение для анализа продаж и расчета бонусов продавцов",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
-    "dev": "nodemon --watch backend --exec \"node backend/server.js\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon backend/server.js",
+    "import": "node backend/importData.js"
   },
   "repository": {
     "type": "git",
@@ -27,7 +28,10 @@
   "homepage": "https://github.com/ArishaMak/sales-bonus#readme",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "dotenv": "^17.2.3",
+    "express": "^4.21.2",
+    "mysql2": "^3.15.2",
+    "path-to-regexp": "^6.2.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

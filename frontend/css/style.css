@@ -1,0 +1,741 @@
+body {
+    font-family: var(--alt-font, "Azeret Mono"), sans-serif;
+    background-color: var(--black, #000000);
+    color: var(--white, #ffffff);
+    font-size: var(--font-size-base, clamp(14px, 1.2vw, 18px));
+    line-height: var(--line-height-base, 1.5);
+    margin: 0;
+    padding: 0;
+    position: relative; /* создаёт stacking context */
+    z-index: 1;
+    overflow-x: hidden;
+}
+
+/* Единый layout — фон и общая структура */
+.page-layout {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--background-gradient, radial-gradient(ellipse at center, #1a0d3a 0%, #000000 100%));
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* === ЗВЁЗДНОЕ НЕБО === */
+.stars,
+.stars2,
+.stars3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  z-index: 3;
+  pointer-events: none;
+  animation: moveStars 200s linear infinite;
+  opacity: var(--opacity-medium, 0.6);
+}
+
+/* Мелкие звёзды */
+.stars {
+  background-image: radial-gradient(1px 1px at 10px 10px, var(--white, white), transparent);
+  animation-duration: 300s;
+  opacity: 0.5;
+  z-index: 12;
+}
+
+/* Средние */
+.stars2 {
+  background-image: radial-gradient(1.5px 1.5px at 20px 20px, rgba(var(--white-rgb, 255,255,255), 0.8), transparent);
+  animation-duration: 200s;
+  opacity: 0.7;
+  z-index: 11;
+}
+
+/* Крупные звёзды */
+.stars3 {
+  background-image: radial-gradient(2px 2px at 30px 30px, rgba(var(--white-rgb, 255,255,255), 0.9), transparent);
+  animation-duration: var(--animation-duration-stars, 120s);
+  opacity: var(--opacity-high, 0.8);
+  z-index: 10;
+}
+
+/* Медленное движение звёзд */
+@keyframes moveStars {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-500px, 1000px); }
+}
+
+/* === ФИКСИРОВАННЫЙ КОСМИЧЕСКИЙ ФОН === */
+.cosmic-bg {
+  position: absolute; /* было fixed */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2; /* фон под контентом */
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* === МАРС — ТЁМНЫЙ, С МЕЛКИМИ КРАТЕРАМИ === */
+.background-planet {
+    position: absolute;
+    top: 20%; /* ПОДНЯЛИ ВВЕРХ (к заголовку) */
+    left: 18%;
+    width: 38vw;
+    height: 38vw;
+    max-width: 460px;
+    max-height: 460px;
+    border-radius: 50%;
+    background: 
+        radial-gradient(circle at 40% 35%, var(--mars-primary) 0%, var(--mars-secondary) 15%, var(--mars-extra-dark1, #993300) 35%, var(--mars-dark) 60%, var(--mars-extra-dark2, #331100) 100%),
+        radial-gradient(circle at 60% 65%, var(--mars-light) 0%, transparent 40%),
+        radial-gradient(circle at 25% 55%, var(--mars-dust) 0%, transparent 35%),
+        radial-gradient(circle at 70% 30%, var(--mars-secondary) 0%, transparent 30%);
+    background-size: 100% 100%, 35% 35%, 28% 28%, 22% 22%;
+    background-position: 0 0, 12% 18%, -12% 35%, 55% -8%;
+    background-repeat: no-repeat;
+    box-shadow:
+        0 0 70px rgba(var(--mars-primary-rgb, 204,85,0), 0.4),
+        inset 0 0 60px rgba(var(--mars-primary-rgb, 204,85,0), 0.2),
+        inset -15px -15px 35px rgba(var(--mars-dark-rgb, 102,34,0), 0.5),
+        0 0 100px rgba(var(--mars-secondary-rgb, 179,71,0), 0.25);
+    opacity: 0.85;
+    z-index: 5;
+    transform: translate(-50%, -50%) scale(1);
+    animation: mars-breath var(--animation-duration-mars, 10s) var(--animation-easing, ease-in-out) infinite alternate;
+}
+
+/* === МНОГО МЕЛКИХ КРАТЕРОВ === */
+.background-planet::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background:
+        /* Крупные кратеры */
+        radial-gradient(circle at 22% 38%, transparent 18%, rgba(var(--black-rgb, 0,0,0), 0.5) 19%, rgba(var(--black-rgb, 0,0,0), 0.7) 21%, transparent 22%),
+        radial-gradient(circle at 68% 52%, transparent 16%, rgba(var(--black-rgb, 0,0,0), 0.45) 17%, rgba(var(--black-rgb, 0,0,0), 0.65) 19%, transparent 20%),
+        radial-gradient(circle at 45% 72%, transparent 20%, rgba(var(--black-rgb, 0,0,0), 0.4) 21%, rgba(var(--black-rgb, 0,0,0), 0.6) 23%, transparent 24%),
+        /* Мелкие кратеры (много!) */
+        radial-gradient(circle at 15% 25%, transparent 8%, rgba(var(--black-rgb, 0,0,0), 0.4) 9%, rgba(var(--black-rgb, 0,0,0), 0.6) 10%, transparent 11%),
+        radial-gradient(circle at 30% 15%, transparent 6%, rgba(var(--black-rgb, 0,0,0), 0.35) 7%, rgba(var(--black-rgb, 0,0,0), 0.55) 8%, transparent 9%),
+        radial-gradient(circle at 55% 20%, transparent 7%, rgba(var(--black-rgb, 0,0,0), 0.3) 8%, rgba(var(--black-rgb, 0,0,0), 0.5) 9%, transparent 10%),
+        radial-gradient(circle at 78% 35%, transparent 9%, rgba(var(--black-rgb, 0,0,0), 0.45) 10%, rgba(var(--black-rgb, 0,0,0), 0.65) 11%, transparent 12%),
+        radial-gradient(circle at 10% 60%, transparent 5%, rgba(var(--black-rgb, 0,0,0), 0.3) 6%, rgba(var(--black-rgb, 0,0,0), 0.5) 7%, transparent 8%),
+        radial-gradient(circle at 35% 80%, transparent 6%, rgba(var(--black-rgb, 0,0,0), 0.35) 7%, rgba(var(--black-rgb, 0,0,0), 0.55) 8%, transparent 9%),
+        radial-gradient(circle at 60% 75%, transparent 7%, rgba(var(--black-rgb, 0,0,0), 0.4) 8%, rgba(var(--black-rgb, 0,0,0), 0.6) 9%, transparent 10%),
+        radial-gradient(circle at 82% 65%, transparent 5%, rgba(var(--black-rgb, 0,0,0), 0.3) 6%, rgba(var(--black-rgb, 0,0,0), 0.5) 7%, transparent 8%);
+    background-size: 100% 100%, 32% 32%, 36% 36%, 15% 15%, 12% 12%, 14% 14%, 18% 18%, 10% 10%, 12% 12%, 14% 14%, 10% 10%;
+    background-position: 
+        0 0, 
+        10% 20%, -10% 50%, 
+        5% 10%, 20% 5%, 45% 8%, 68% 20%, 
+        0% 45%, 25% 65%, 50% 60%, 72% 50%;
+    background-repeat: no-repeat;
+    filter: blur(0.8px);
+    opacity: 0.75;
+    z-index: 8;
+    animation: crater-pulse 8s var(--animation-easing, ease-in-out) infinite alternate-reverse;
+}
+
+/* === ПЫЛЬНАЯ АТМОСФЕРА (лёгкая, как на tensorstax.com) === */
+.background-planet::after {
+    content: "";
+    position: absolute;
+    width: 115%;
+    height: 115%;
+    top: -7.5%;
+    left: -7.5%;
+    border-radius: 50%;
+    background: radial-gradient(circle, transparent 65%, rgba(var(--mars-primary-rgb, 204,85,0), 0.08) 85%, rgba(var(--mars-secondary-rgb, 179,71,0), 0.12) 100%);
+    filter: blur(25px);
+    opacity: 0.5;
+    z-index: 7;
+    animation: dust-haze 12s var(--animation-easing, ease-in-out) infinite;
+}
+
+.mars-rings {
+  position: absolute;
+  top: 20%;
+  left: 18%;
+  width: 60vw;
+  height: 60vw;
+  max-width: 720px;
+  max-height: 720px;
+  transform: translate(-50%, -50%) rotateX(70deg);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(var(--ring-inner-rgb, 255,140,0), 0.6) 0%,
+    rgba(var(--orange-dark-rgb, 255,69,0), 0.2) 70%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 40px 10px rgba(var(--orange-light-rgb, 255,120,0), 0.4),
+    0 0 80px 20px rgba(var(--ring-outer-rgb, 255,80,0), 0.2);
+  z-index: 4;
+  pointer-events: none;
+  animation: rotateRings var(--animation-duration-stars, 120s) linear infinite;
+  opacity: var(--opacity-high, 0.8);
+  filter: blur(0.6px);
+}
+
+/* Внутреннее кольцо (ближе к планете) */
+.mars-rings::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 110%;
+    height: 40%;
+    border-radius: 50%;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(var(--mars-primary-rgb, 204,85,0), 0.08) 30%,
+        rgba(var(--mars-secondary-rgb, 179,71,0), 0.15) 50%,
+        rgba(var(--mars-primary-rgb, 204,85,0), 0.08) 70%,
+        transparent 100%
+    );
+    box-shadow:
+        0 0 30px rgba(var(--mars-primary-rgb, 204,85,0), 0.2),
+        0 0 60px rgba(var(--mars-secondary-rgb, 179,71,0), 0.1);
+    filter: var(--backdrop-blur-small, blur(8px));
+    transform: rotateZ(0deg);
+    opacity: var(--opacity-medium, 0.6);
+}
+
+/* Внешнее кольцо (шире и разреженнее) */
+.mars-rings::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 130%;
+    height: 25%;
+    border-radius: 50%;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(var(--mars-primary-rgb, 204,85,0), 0.05) 40%,
+        rgba(var(--mars-secondary-rgb, 179,71,0), 0.1) 55%,
+        rgba(var(--mars-primary-rgb, 204,85,0), 0.05) 70%,
+        transparent 100%
+    );
+    box-shadow: 0 0 50px rgba(var(--mars-secondary-rgb, 179,71,0), 0.08);
+    filter: var(--backdrop-blur-medium, blur(12px));
+    opacity: 0.4;
+}
+
+.mars-rings-front {
+    position: absolute;
+    top: 20%;
+    left: 18%;
+    width: 60vw;
+    height: 60vw;
+    max-width: 720px;
+    max-height: 720px;
+    transform: translate(-50%, -50%) rotateX(70deg);
+    border-radius: 50%;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(var(--ring-inner-rgb, 255,140,0), 0.6) 0%,
+        rgba(var(--orange-dark-rgb, 255,69,0), 0.2) 70%,
+        transparent 100%
+    );
+    box-shadow:
+        0 0 40px 10px rgba(var(--orange-light-rgb, 255,120,0), 0.4),
+        0 0 80px 20px rgba(var(--ring-outer-rgb, 255,80,0), 0.2);
+    z-index: 8;
+    pointer-events: none;
+    animation: rotateRings var(--animation-duration-stars, 120s) linear infinite;
+    opacity: var(--opacity-high, 0.8);
+    filter: blur(0.6px);
+    clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0% 100%); 
+}
+
+@keyframes mars-breath {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(1); 
+        box-shadow: 0 0 70px rgba(var(--mars-primary-rgb, 204,85,0), 0.4), inset 0 0 60px rgba(var(--mars-primary-rgb, 204,85,0), 0.2);
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.03); 
+        box-shadow: 0 0 90px rgba(var(--mars-primary-rgb, 204,85,0), 0.55), inset 0 0 75px rgba(var(--mars-primary-rgb, 204,85,0), 0.25);
+    }
+}
+
+/* === МЕРЦАНИЕ КРАТЕРОВ === */
+@keyframes crater-pulse {
+    0%, 100% { opacity: 0.7; filter: blur(0.8px); }
+    50% { opacity: 0.85; filter: blur(0.5px); }
+}
+
+/* === ПЫЛЬ В АТМОСФЕРЕ === */
+@keyframes dust-haze {
+    0%, 100% { opacity: 0.45; transform: translate(-50%, -50%) scale(1); }
+    50% { opacity: var(--opacity-medium, 0.6); transform: translate(-50%, -50%) scale(1.04); }
+}
+
+/* Все внутренние секции поверх фона */
+.page-layout > * {
+    position: relative;
+    z-index: 5;
+}
+
+.header {
+    z-index: 10;
+    width: 100%;
+    position: fixed;
+    inset: 0% 0% auto;
+    backdrop-filter: blur(10px);
+    background: var(--background, rgba(10, 10, 10, 0.95));
+    border-bottom: 1px solid var(--border-for-bottom, rgba(139, 92, 246, 0.2));
+}
+
+.wrapper {
+    padding-top: 16px;
+    padding-left: 20px;
+    padding-right: 20px;
+    max-width: min(90%, 1200px);
+    margin: 0 auto;
+}
+
+.flexbox {
+    justify-content: space-between;
+    align-items: stretch;
+    display: flex;
+}
+
+.flexbox.middle {
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logotype {
+    height: 3em;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: var(--white, #ffffff);
+    font-weight: 700;
+    font-size: 1.8em;
+}
+
+.logotype__img {
+    height: 2.2em;
+    margin-right: 0.6em;
+    opacity: 0.8;
+}
+
+.menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 2em;
+}
+
+.menu a {
+    font-family: var(--alt-font, "Azeret Mono"), sans-serif;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--btn-height, 48px);
+    padding: var(--btn-padding, 0 1.5rem);
+    color: var(--white, #fff);
+    text-decoration: none;
+    font-weight: 500;
+    border: 1px solid rgba(var(--white-rgb, 255,255,255), 0.1);
+    border-radius: var(--border-radius-small, 6px);
+    background: rgba(var(--black-rgb, 0,0,0), 0.3);
+    backdrop-filter: var(--backdrop-blur-small, blur(8px));
+    transition: var(--transition-base, all 0.3s ease);
+    overflow: hidden;
+}
+
+/* Белая точка в правом верхнем углу */
+.menu a::after {
+    content: "";
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 6px;
+    height: 6px;
+    background: var(--white, #fff);
+    border-radius: 50%;
+    opacity: var(--opacity-medium, 0.6);
+    transition: opacity 0.3s;
+}
+
+.menu a:hover {
+    border-color: rgba(var(--orange-rgb, 255,100,20), 0.8);
+    box-shadow:
+        0 0 8px rgba(var(--orange-light-rgb, 255,120,0), 0.4),
+        0 0 16px rgba(var(--orange-rgb, 255,100,20), 0.3),
+        inset 0 0 12px rgba(var(--orange-rgb, 255,100,20), 0.15);
+    backdrop-filter: var(--backdrop-blur-medium, blur(12px));
+    transform: translateY(-2px);
+}
+
+.menu a:hover::after {
+    opacity: 1;
+}
+
+.menu a:active {
+    transform: translateY(0);
+    box-shadow:
+        0 0 4px rgba(var(--orange-rgb, 255,100,20), 0.5),
+        inset 0 0 8px rgba(var(--orange-rgb, 255,100,20), 0.3);
+}
+
+.menu a span.letter {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: letterIn 0.4s ease forwards;
+}
+
+@keyframes letterIn {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Мобильное меню */
+.mobile-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 11;
+}
+
+.mobile-toggle span {
+    width: 24px;
+    height: 2px;
+    background: var(--white, #ffffff);
+    transition: 0.3s;
+}
+
+/* === КНОПКИ === */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--btn-height, 48px);
+    padding: var(--btn-padding, 0 1.5rem);
+    border-radius: var(--border-radius-small, 8px);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: var(--transition-base, all 0.3s ease);
+    background: rgba(var(--black-rgb, 0,0,0), 0.3);
+    border: 1px solid rgba(var(--white-rgb, 255,255,255), 0.1);
+    color: var(--white, #fff);
+    text-decoration: none;
+    backdrop-filter: var(--backdrop-blur-small, blur(8px));
+    overflow: hidden;
+    position: relative;
+}
+
+.btn:hover {
+    border-color: rgba(var(--orange-rgb, 255,100,20), 0.8);
+    box-shadow:
+        0 0 8px rgba(var(--orange-light-rgb, 255,120,0), 0.4),
+        0 0 16px rgba(var(--orange-rgb, 255,100,20), 0.3),
+        inset 0 0 12px rgba(var(--orange-rgb, 255,100,20), 0.15);
+    backdrop-filter: var(--backdrop-blur-medium, blur(12px));
+    transform: translateY(-2px);
+}
+
+.btn:hover::after {
+    opacity: 1;
+}
+
+.btn:active {
+    transform: translateY(0);
+    box-shadow:
+        0 0 4px rgba(var(--orange-rgb, 255,100,20), 0.5),
+        inset 0 0 8px rgba(var(--orange-rgb, 255,100,20), 0.3);
+}
+
+.btn-primary {
+    color: var(--white, #fff);
+    background: rgba(var(--orange-rgb, 255,100,20), var(--opacity-low, 0.2));
+    border-color: rgba(var(--orange-rgb, 255,100,20), 0.3);
+}
+
+.btn-secondary {
+    color: var(--white, #fff);
+    background: rgba(var(--white-rgb, 255,255,255), 0.05);
+    border-color: rgba(var(--white-rgb, 255,255,255), 0.15);
+}
+
+.hero {
+    position: relative;
+    z-index: 5;
+    min-height: 100vh;
+    height: auto;
+    overflow: visible; /* показываем контент, если он больше экрана */
+    background: var(--background-gradient, radial-gradient(ellipse at center, #1a0d3a 0%, #000000 100%));
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding-top: clamp(120px, 15vh, 180px);
+}
+
+.wrapper-hero {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    width: 100%;
+    padding-inline: 1rem;
+    padding-bottom: 2rem;
+    position: relative;
+    z-index: 2;
+    height: auto;
+}
+
+.h1_box {
+    width: 67ch;
+    margin-bottom: 20px;
+    max-width: 90%;
+}
+
+.h1 {
+    font-family: var(--alt-font, "Azeret Mono", Arial, sans-serif);
+    font-size: clamp(2.4rem, 6.4vw + 0.8rem, 8rem);
+    line-height: 1.1;
+    word-break: keep-all;
+    font-family: inherit;
+    overflow-wrap: normal;
+    text-wrap: balance;
+    font-weight: bold;
+    margin: 0;
+    font-weight: 700;
+}
+
+.h1 .letter {
+  display: inline-block;
+  margin-right: 0.05em; /* для пробелов */
+}
+
+.h1 .letter:empty {
+  width: 0.25em; /* пространство для пробела */
+}
+
+/* Подзаголовок */
+.header__paragraph {
+    font-family: var(--main-font2, 'IMB Plex mono');
+    font-size: 1.6em;
+    color: var(--gray, #a1a1aa);
+    width: 100%;
+    width: fit-content;
+    max-width: 100%;
+    margin: var(--padding-medium, 1.5em) 0;
+    opacity: 0;
+    animation: fadeInUp 1s ease-out 0.5s forwards;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* === ФИЛЬТРЫ === */
+.filters-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5em;
+    justify-content: center;
+    align-items: flex-start;
+    margin-top: 3em;
+    padding: var(--padding-medium, 1.5em);
+    background: rgba(var(--dark-purple-rgb, 26,13,58), 0.3);
+    border-radius: var(--border-radius-large, 1em);
+    backdrop-filter: var(--backdrop-blur-medium, blur(12px));
+    border: 1px solid var(--border-purple, rgba(139, 92, 246, 0.2));
+}
+
+.filters-panel.animate {
+    /* Запускаем анимацию */
+    opacity: 1;
+    transform: translateY(0);
+    animation: fadeInUp 1s ease-out forwards;
+}
+
+.filter-group {
+    flex: 1 1 220px; /* позволяет блокам равномерно распределяться */
+    min-width: 200px;
+}
+
+.filter-input,
+.filter-select {
+    width: 100%;
+    padding: 0.9em 1.2em;
+    background: rgba(10, 10, 10, var(--opacity-medium, 0.6));
+    border: 1px solid rgba(var(--border-purple-rgb, 139,92,246), 0.3);
+    border-radius: var(--border-radius-medium, 0.6em);
+    color: var(--white, #ffffff);
+    font-size: 1em;
+    transition: var(--transition-base, all 0.3s ease);
+}
+
+.filter-input::placeholder {
+    color: var(--gray, #a1a1aa);
+}
+
+.filter-input:focus,
+.filter-select:focus {
+    outline: none;
+    border-color: var(--purple, #8b5cf6);
+    box-shadow: 0 0 0 3px var(--border-purple, rgba(139, 92, 246, 0.2));
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* === РЕЗУЛЬТАТЫ === */
+.results-section {
+    padding: 6em 0;
+    background: var(--black, #000000);
+}
+
+.section-header {
+    margin-bottom: 2em;
+}
+
+/* Сводка */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--padding-medium, 1.5em);
+    margin-bottom: 3em;
+}
+
+.summary-card {
+    background: rgba(var(--dark-purple-rgb, 26,13,58), 0.4);
+    padding: var(--padding-medium, 1.5em);
+    border-radius: var(--border-radius-large, 1em);
+    border: 1px solid var(--border-purple, rgba(139, 92, 246, 0.2));
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-4px);
+}
+
+.summary-card h3 {
+    font-size: 1em;
+    color: var(--gray, #a1a1aa);
+    margin: 0 0 0.5em;
+}
+
+.summary-card p {
+    font-size: 2em;
+    font-weight: 700;
+    margin: 0;
+    color: var(--purple, #8b5cf6);
+}
+
+/* Таблица */
+.table-container {
+    overflow-x: auto;
+    border-radius: var(--border-radius-large, 1em);
+    border: 1px solid var(--border-purple, rgba(139, 92, 246, 0.2));
+    background: rgba(10, 10, 10, 0.5);
+    margin-bottom: 2em;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.table th {
+    padding: var(--padding-small, 0.8rem);
+    font-weight: 600;
+    border-bottom: 2px solid rgba(98, 105, 121, 0.25);
+    vertical-align: bottom;
+}
+
+.table td {
+    padding: var(--padding-small, 0.8rem);
+    border-top: 1px solid rgba(98, 105, 121, 0.25);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(var(--black-rgb, 0,0,0), 0.03);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(var(--black-rgb, 0,0,0), 0.06);
+}
+
+/* Пагинация */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 0.5em;
+    margin-top: 2em;
+}
+
+.pagination button {
+    min-width: 40px;
+    height: 40px;
+    background: rgba(var(--dark-purple-rgb, 26,13,58), 0.4);
+    border: 1px solid var(--border-purple, rgba(139, 92, 246, 0.2));
+    color: var(--white, #ffffff);
+    border-radius: var(--border-radius-medium, 0.6em);
+    cursor: pointer;
+    transition: var(--transition-base, all 0.3s ease);
+    font-size: 1em;
+}
+
+.pagination button.active,
+.pagination button:hover {
+    background: var(--purple, #8b5cf6);
+    border-color: var(--purple, #8b5cf6);
+}
+
+/* === АНИМАЦИЯ БУКВ === */
+.letter {
+    opacity: 0;
+    display: inline-block;
+    animation: fadeInLetter 0.8s ease-out forwards;
+    transform: translateY(20px);
+}
+
+@keyframes fadeInLetter {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
