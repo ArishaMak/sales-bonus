@@ -1,554 +1,477 @@
-/**
- * ===== main.js =====
- * Этот файл управляет загрузкой данных с сервера,
- * их анализом (выручка, прибыль, бонусы) и отображением в консоли.
- * Теперь он поддерживает фильтрацию, поиск и пагинацию.
- */
+// frontend/src/main.js — Фикс fetch error handling (JSON parse safe) + логи + fallbacks для рендера
+import { getCatalogs, getRecords, updateSellerStats } from "./modules/api.js";
+import { renderCharts } from "./modules/charts.js";
+import { openSellerModal } from "./modules/sellerModal.js";
 
-// ---------------------- НАСТРОЙКИ ----------------------
-const API_BASE = 'http://localhost:5000/api';
+/* ================== Настройки ================== */
+const SELLERS_PER_PAGE = 8;
+let queryParams = { page: 1, limit: 9999, search: "", sellerId: "", sku: "" };
 
-// Текущие параметры запроса (можно будет менять при поиске/фильтрах)
-let queryParams = {
-  page: 1,
-  limit: 9999, // потом исправлю
-  search: '',
-  sellerId: '',
-  sku: '',
-  sortBy: 'purchase_id',
-  sortDir: 'asc'
-};
+let allSellers = [];
+let currentPage = 1;
 
-// ---------------------- ФУНКЦИИ РАСЧЁТА ----------------------
+/* ========== Утилиты ========== */
+function escapeHtml(str = "") {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-/*function calculateSimpleRevenue(purchase, _product) {
-  const { discount = 0, sale_price = 0, quantity = 0 } = purchase;
-  const finalDiscount = 1 - discount / 100;
-  return sale_price * quantity * finalDiscount;
-}*/
-function calculateSimpleRevenue(item, product) {  // Переименуйте param для ясности
-  const { discount = 0, quantity = 0 } = item;   // Из item: discount, quantity
-  const sale_price = product.sale_price || 0;    // Из product: sale_price
-  const finalDiscount = 1 - discount / 100;
-  return sale_price * quantity * finalDiscount;
+function safeNum(v, digits = 2) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(digits) : "0.00";
+}
+
+/* ========== Бизнес: расчёты ========== */
+function calculateSimpleRevenue(item, product) {
+  const quantity = Number(item.quantity || 0);
+  const discount = Number(item.discount || 0);
+  const sale_price = Number(product?.sale_price || 0);
+  return sale_price * quantity * (1 - discount / 100);
 }
 
 function calculateBonusByProfit(index, total, seller) {
-  const max_bonus = 0.15;
-  const high_bonus = 0.1;
-  const low_bonus = 0.05;
-  const min_bonus = 0;
-  if (index === 0) return seller.profit * max_bonus;
-  else if (index === 1 || index === 2) return seller.profit * high_bonus;
-  else if (index === total - 1) return seller.profit * min_bonus;
-  else return seller.profit * low_bonus;
+  if (index === 0) return (seller.profit || 0) * 0.15;
+  if (index === 1 || index === 2) return (seller.profit || 0) * 0.1;
+  if (index === total - 1) return 0;
+  return (seller.profit || 0) * 0.05;
 }
 
-// ---------------------- ЗАГРУЗКА ДАННЫХ ----------------------
+/* ========== Аналитика: собираем статистику продавцов ========== */
+function analyzeSalesData(data, options = {}) {
+  const { calculateRevenue = calculateSimpleRevenue, calculateBonus = calculateBonusByProfit } = options;
 
-/**
- * Загружает справочники (продавцы, клиенты, товары)
- */
-async function loadCatalogs() {
-  const response = await fetch(`${API_BASE}/catalogs`);
-  if (!response.ok) throw new Error('Ошибка загрузки каталогов');
-  return await response.json();
+  const sellersMap = {};
+  (data.sellers || []).forEach(s => {
+    const id = String(s.seller_id ?? s.sellerId ?? s.id ?? "").trim();
+    if (!id) return;
+    sellersMap[id] = {
+      id,
+      name: `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim() || id,
+      revenue: 0,
+      profit: 0,
+      sales_count: 0,
+      products_sales: {},
+      department: s.department || "-",
+      updated_at: s.updated_at || s.updatedAt || null,
+      plan: Number(s.plan_revenue || 10000)
+    };
+  });
+
+  const productIndex = Object.fromEntries((data.products || []).map(p => [String(p.sku), {
+    sku: String(p.sku),
+    name: p.name,
+    purchase_price: Number(p.purchase_price) || 0,
+    sale_price: Number(p.sale_price) || 0
+  }]));
+
+  (data.purchase_records || []).forEach(rec => {
+    const rawId = String(rec.seller_id ?? rec.sellerId ?? "").trim();
+    const seller = sellersMap[rawId];
+    if (!seller) return;
+
+    seller.sales_count += 1;
+    seller.revenue += Number(rec.total_amount) || 0;
+
+    (rec.items || []).forEach(item => {
+      const sku = String(item.sku ?? "");
+      const product = productIndex[sku];
+      if (!product) return;
+
+      const rev = calculateRevenue(item, product);
+      const cost = (Number(product.purchase_price) || 0) * (Number(item.quantity) || 0);
+      const profit = (Number(rev) || 0) - cost;
+
+      seller.revenue += Number(rev) || 0;
+      seller.profit += profit || 0;
+      seller.products_sales[sku] = (seller.products_sales[sku] || 0) + (Number(item.quantity) || 0);
+    });
+  });
+
+  const arr = Object.values(sellersMap);
+  arr.sort((a, b) => (b.profit || 0) - (a.profit || 0));
+  arr.forEach((s, idx, all) => {
+    s.bonus = calculateBonus(idx, all.length, s);
+    s.top_products = Object.entries(s.products_sales || {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([sku, qty]) => ({ sku, quantity: qty }));
+  });
+
+  return arr.map(s => ({
+    seller_id: s.id,
+    name: s.name,
+    revenue: Number(s.revenue || 0),
+    profit: Number(s.profit || 0),
+    sales_count: s.sales_count || 0,
+    top_products: s.top_products || [],
+    bonus: Number(s.bonus || 0),
+    department: s.department,
+    updated_at: s.updated_at,
+    plan: s.plan
+  }));
 }
 
-/**
- * Загружает записи с фильтрацией, поиском и пагинацией
- */
-async function loadPurchaseRecords(params = {}) {
-  const query = new URLSearchParams(params).toString();
-  const response = await fetch(`${API_BASE}/records?${query}`);
-  if (!response.ok) throw new Error('Ошибка загрузки записей');
-  return await response.json();
+/* ========== Загрузка данных с backend ========== */
+async function loadData() {
+  try {
+    console.log('🔄 Starting loadData...');
+    const [catalogs, recordsResp, dashboardResp] = await Promise.all([
+      getCatalogs().then(c => { console.log('✅ Catalogs loaded:', c.sellers?.length || 0); return c; }).catch(e => { console.error('❌ Catalogs failed:', e); return { products: [], sellers: [], customers: [] }; }),
+      getRecords(queryParams).then(r => { console.log('✅ Records loaded:', r.total || 0); return r; }).catch(e => { console.error('❌ Records failed:', e); return { items: [], total: 0 }; }),
+      fetch('/api/dashboard').then(r => {
+        if (r.ok) return r.json();
+        console.warn('⚠ Dashboard fallback');
+        return { total_revenue: 0, top_sellers: [], categories: [], months: [] };
+      }).catch(e => { console.error('❌ Dashboard failed:', e); return { total_revenue: 0, top_sellers: [], categories: [], months: [] }; })
+    ]);
+
+    const result = {
+      products: catalogs.products || [],
+      sellers: catalogs.sellers || [],
+      customers: catalogs.customers || [],
+      purchase_records: (recordsResp && recordsResp.items) || [],
+      totalRecords: (recordsResp && recordsResp.total) || 0,
+      dashboard: dashboardResp
+    };
+    console.log('✅ loadData complete:', result.sellers.length, 'sellers');
+    return result;
+  } catch (err) {
+    console.error('loadData error:', err);
+    // Fallback empty data
+    return {
+      products: [], sellers: [], customers: [], purchase_records: [], totalRecords: 0, dashboard: {}
+    };
+  }
 }
 
-/**
- * Основная функция загрузки данных с сервера
- */
-async function loadDataFromServer(params = {}) {
-  const [catalogs, recordsData] = await Promise.all([
-    loadCatalogs(),
-    loadPurchaseRecords(params)
-  ]);
-
-  return {
-    products: catalogs.products,
-    sellers: catalogs.sellers,
-    customers: catalogs.customers,
-    purchase_records: recordsData.items,
-    total: recordsData.total,
-    page: recordsData.page,
-    limit: recordsData.limit
-  };
-}
-
-// ---------------------- АНАЛИЗ ДАННЫХ ----------------------
-const SELLERS_PER_PAGE = 5;
-let allSellers = [];        // ← хранит ВСЕХ продавцов
-let currentPage = 1;        // ← текущая страница
-
-function analyzeSalesData(data, options) {
-  console.log('=== ОТЛАДКА ДАННЫХ ===');
-  console.log('Продавцы:', data.sellers.slice(0,3));
-  console.log('Покупки:', data.purchase_records.slice(0,3));
-
-  // Ранний выход, если данные некорректны
-  if (
-    !data ||
-    !Array.isArray(data.customers) ||
-    !Array.isArray(data.products) ||
-    !Array.isArray(data.sellers) ||
-    !Array.isArray(data.purchase_records)
-  ) {
-    console.error('❌ Некорректные входные данные');
+/* ========== Топ-товары ========== */
+async function getTopProducts() {
+  try {
+    const r = await fetch('/api/top-products');
+    if (!r.ok) {
+      console.error('Top products fetch failed:', r.status, await r.text());
+      return [];
+    }
+    return r.json();
+  } catch (err) {
+    console.error('Top products load failed:', err);
     return [];
   }
-
-  const { calculateRevenue, calculateBonus } = options;
-
-  try {
-    // --- 1. Создаём статистику продавцов ---
-    const sellerStats = data.sellers.map(seller => {
-      const id = parseInt(seller.id) || parseInt(seller.seller_id) || parseInt(seller.sellerId) || `seller_${seller.id || 'unknown'}`;
-      return {
-        id: id.toString(),  // Нормализуем к строке для индекса
-        name: `${seller.first_name ?? ''} ${seller.last_name ?? ''}`.trim(),
-        revenue: 0,  // Число
-        profit: 0,   // Число
-        sales_count: 0,
-        products_sales: {},
-        bonus: 0
-      };
-    });
-
-    // --- 2. Создаём индексы ---
-    const sellerIndex = sellerStats.reduce((acc, obj) => {
-      acc[obj.id] = obj;
-      // Дублируем для числовых ключей (если seller_id — число в записях)
-      const numericId = parseInt(obj.id);
-      if (!isNaN(numericId)) {
-        acc[numericId.toString()] = obj;
-      }
-      return acc;
-    }, {});
-
-    const productIndex = data.products.reduce((acc, p) => {
-      const sku = p.sku?.toString() || '';
-      acc[sku] = {
-        name: p.name || '',
-        category: p.category || '',
-        sku,
-        purchase_price: parseFloat(p.purchase_price) || 0,  // Нормализуем к числу
-        sale_price: parseFloat(p.sale_price) || 0           // Нормализуем к числу
-      };
-      return acc;
-    }, {});
-
-    console.log('🔍 Ключи продавцов:', Object.keys(sellerIndex).slice(0, 10));
-
-    // --- 3. Обрабатываем покупки ---
-    data.purchase_records.forEach(record => {
-      // Нормализуем sellerId
-      let sellerId = record.seller_id?.toString() ||
-                     record.sellerId?.toString() ||
-                     (record.seller?.id?.toString()) ||
-                     (typeof record.seller === 'string' ? record.seller : null);
-
-      if (!sellerId) {
-        console.warn('⚠️ Нет sellerId в записи:', record);
-        return;
-      }
-
-      const seller = sellerIndex[sellerId];
-      if (!seller) {
-        console.warn('⚠️ Не найден продавец для ID:', sellerId, '(доступные:', Object.keys(sellerIndex).slice(0,5), ')');
-        return;
-      }
-
-      if (!record.items || !Array.isArray(record.items)) {
-        console.warn('⚠️ Запись без items:', record);
-        return;
-      }
-
-      seller.sales_count += 1;  // Увеличиваем счётчик
-
-      // Нормализуем total_amount
-      const totalAmount = parseFloat(record.total_amount) || 0;
-      seller.revenue += totalAmount;
-
-      record.items.forEach(item => {
-        const sku = item.sku?.toString() || '';
-        const product = productIndex[sku];
-        if (!product) {
-          console.warn('❌ Не найден товар по SKU:', sku, '(доступные:', Object.keys(productIndex).slice(0,5), ')');
-          return;
-        }
-
-        // Нормализуем числовые поля в item
-        const quantity = parseFloat(item.quantity) || 0;
-        const discount = parseFloat(item.discount) || 0;
-
-        const cost = product.purchase_price * quantity;
-        const revenue = calculateRevenue({ ...item, quantity, discount }, product);  // Передаём нормализованные
-        const profit = parseFloat(revenue) - parseFloat(cost);  // Явно к числу
-
-        seller.profit += profit;
-
-        if (!seller.products_sales[sku]) seller.products_sales[sku] = 0;
-        seller.products_sales[sku] += quantity;
-      });
-    });
-
-    console.log('📊 После обработки (первые 3):', sellerStats.slice(0,3).map(s => ({ name: s.name, revenue: s.revenue, profit: s.profit })));
-
-    // --- 4. Сортировка и бонусы ---
-    sellerStats.sort((a, b) => parseFloat(b.profit) - parseFloat(a.profit));
-
-    sellerStats.forEach((seller, index) => {
-      seller.bonus = calculateBonus(index, sellerStats.length, seller);
-      seller.top_products = Object.entries(seller.products_sales)
-        .sort((a, b) => parseFloat(b[1]) - parseFloat(a[1]))  // Нормализуем quantity
-        .slice(0, 10)
-        .map(([sku, quantity]) => ({ sku, quantity: parseFloat(quantity) }));
-    });
-
-    // --- 5. Итог (финальная нормализация типов) ---
-    const results = sellerStats.map(seller => ({
-      seller_id: seller.id,
-      name: seller.name,
-      revenue: parseFloat(seller.revenue) || 0,  // Финальный parseFloat
-      profit: parseFloat(seller.profit) || 0,
-      sales_count: seller.sales_count || 0,
-      top_products: seller.top_products || [],
-      bonus: parseFloat(seller.bonus) || 0
-    }));
-
-    console.log('✅ Итоговые результаты (первые 3):', results.slice(0,3));
-    return results;
-
-  } catch (err) {
-    console.error('❌ Ошибка в analyzeSalesData:', err);
-    console.error('Пример данных:', { sellers: data.sellers?.[0], records: data.purchase_records?.[0] });
-    return [];  // Возвращаем пустой массив
-  }
 }
 
-// ---------------------- ОТОБРАЖЕНИЕ ----------------------
-function renderReport(results, totalSellers, page, limit) {
-  const tbody = document.querySelector('#reportTable tbody');
-  const summary = document.getElementById('summary');
-  const pagination = document.getElementById('pagination');
+function renderTopProductsSection(topProds = []) {
+  let section = document.getElementById("topProductsSection");
+  if (!section) {
+    console.log('🔄 Creating topProductsSection');
+    section = document.createElement("div");
+    section.id = "topProductsSection";
+    section.className = "top-products-section";
+    section.innerHTML = `
+      <h3>Топ-товары (артикулы/ID)</h3>
+      <div class="table-container">
+        <table class="table table-striped table-hover">
+          <thead>
+            <tr>
+              <th>Артикул/ID</th>
+              <th>Название</th>
+              <th>Продавец</th>
+              <th>Выручка</th>
+              <th>Кол-во</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    `;
+    // Фикс: Вставь ПОСЛЕ таблицы продавцов (.table-container для #reportTable)
+    const pagination = document.getElementById("pagination");
+    if (pagination) {
+      pagination.after(section);
+    } else {
+      document.body.appendChild(section); // fallback
+    }
+  }
+  const tbody = section.querySelector("tbody");
+  if (topProds.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5">Нет данных</td></tr>';
+    console.log('⚠ No top products data');
+    return;
+  }
+  tbody.innerHTML = topProds.map(p => `
+    <tr>
+      <td>${escapeHtml(p.id_artikul || p.sku)}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.sellers || 'Не указан')}</td>
+      <td>${Number(p.revenue || 0).toLocaleString("ru-RU")} ₽</td>
+      <td>${p.total_qty || 0}</td>
+    </tr>
+  `).join("");
+  console.log('✅ Top products rendered:', topProds.length);
+}
 
-  if (!tbody) return console.error('Таблица #reportTable не найдена');
-
-  tbody.innerHTML = '';
-
-  if (!results || results.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6">Нет данных для отображения</td></tr>';
-    if (summary) summary.textContent = '';
-    if (pagination) pagination.innerHTML = '';
+/* ========== Рендеры UI ========== */
+function populateFilters(catalogs) {
+  const sellerFilter = document.getElementById("sellerFilter");
+  const skuFilter = document.getElementById("skuFilter");
+  if (!sellerFilter || !skuFilter) {
+    console.warn('⚠ Filters elements not found');
     return;
   }
 
-  results.forEach(seller => {
-    const tr = document.createElement('tr');
+  sellerFilter.innerHTML = '<option value="">Все продавцы</option>' +
+    (catalogs.sellers || []).map(s => `<option value="${escapeHtml(s.seller_id)}">${escapeHtml(s.first_name ?? "")} ${escapeHtml(s.last_name ?? "")}</option>`).join("");
+
+  skuFilter.innerHTML = '<option value="">Все товары</option>' +
+    (catalogs.products || []).map(p => `<option value="${escapeHtml(p.sku)}">${escapeHtml(p.name)}</option>`).join("");
+
+  // Populate datalist for instant suggestions (search)
+  const dlId = "searchList";
+  let dl = document.getElementById(dlId);
+  if (!dl) {
+    dl = document.createElement("datalist");
+    dl.id = dlId;
+    document.body.appendChild(dl);
+  }
+  const options = new Set();
+  (catalogs.sellers || []).forEach(s => options.add(`${s.first_name ?? ""} ${s.last_name ?? ""}`.trim()));
+  (catalogs.customers || []).forEach(c => options.add(`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()));
+  dl.innerHTML = Array.from(options).map(t => `<option value="${escapeHtml(t)}">`).join("");
+  const searchInput = document.getElementById("search");
+  if (searchInput) searchInput.setAttribute("list", dlId);
+  console.log('✅ Filters populated:', catalogs.sellers?.length || 0, 'sellers');
+}
+
+function renderSummary(totalSellers) {
+  const summary = document.getElementById("summary");
+  if (!summary) {
+    console.warn('⚠ Summary element not found');
+    return;
+  }
+  summary.innerHTML = `<div class="summary-card">Всего продавцов: ${totalSellers}</div>`;
+  console.log('✅ Summary rendered:', totalSellers);
+}
+
+function renderTable(pageData, total, page, limit) {
+  console.log('🔄 renderTable called:', pageData.length, 'rows, page', page);
+  const tbody = document.querySelector("#reportTable tbody");
+  const pagination = document.getElementById("pagination");
+  if (!tbody) {
+    console.error('❌ #reportTable tbody not found — check HTML');
+    return;
+  }
+  if (!pagination) {
+    console.error('❌ #pagination not found — check HTML');
+    return;
+  }
+
+  tbody.innerHTML = "";
+  pageData.forEach(s => {
+    const kpi = s.plan ? ((s.revenue / s.plan) * 100).toFixed(0) : 0;
+    const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${seller.name}</td>
-      <td>${seller.revenue.toFixed(2)}</td>
-      <td>${seller.profit.toFixed(2)}</td>
-      <td>${seller.sales_count}</td>
-      <td>${seller.bonus.toFixed(2)}</td>
-      <td>${seller.top_products.map(p => `${p.sku} (${p.quantity})`).join(', ')}</td>
+      <td>${escapeHtml(s.name)}</td>
+      <td>${safeNum(s.revenue)}</td>
+      <td>${safeNum(s.profit)}</td>
+      <td>${escapeHtml(String(s.sales_count))}</td>
+      <td>${kpi}%</td>
+      <td>${safeNum(s.bonus)}</td>
+      <td>${(s.top_products || []).map(p => `${escapeHtml(p.sku)} (${p.quantity})`).join(", ")}</td>
+      <td><button class="btn btn-secondary open-seller" data-id="${escapeHtml(s.seller_id)}" data-name="${escapeHtml(s.name)}">Открыть</button></td>
     `;
     tbody.appendChild(tr);
   });
 
-  if (summary) summary.textContent = `Всего продавцов: ${totalSellers} (страница ${page})`;
+  // Event listeners для кнопок "Открыть"
+  tbody.querySelectorAll(".open-seller").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const id = e.currentTarget.dataset.id;
+      const name = e.currentTarget.dataset.name || id;
+      openSellerModal(id, name);
+    });
+  });
 
-  // Пагинация по продавцам
-  const totalPages = Math.ceil(totalSellers / limit);
-  let pagHtml = `
-    <button class="btn btn-secondary" onclick="changePage(${page - 1})" ${page <= 1 ? 'disabled' : ''}>
-      ← Пред
-    </button>
-    <span style="padding:0 1em;">${page} / ${totalPages}</span>
-    <button class="btn btn-secondary" onclick="changePage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>
-      След →
-    </button>
+  const pages = Math.max(1, Math.ceil(total / limit));
+  pagination.innerHTML = `
+    <button class="btn btn-secondary" id="prevPage" ${page <= 1 ? "disabled" : ""}>← Пред</button>
+    <span style="padding: 0 1em;">${page}/${pages}</span>
+    <button class="btn btn-secondary" id="nextPage" ${page >= pages ? "disabled" : ""}>След →</button>
   `;
-  if (pagination) pagination.innerHTML = pagHtml;
+  document.getElementById("prevPage")?.addEventListener("click", () => changePage(page - 1));
+  document.getElementById("nextPage")?.addEventListener("click", () => changePage(page + 1));
+  console.log('✅ Table rendered:', pageData.length, 'rows, pages:', pages);
 }
 
-function populateFilters(catalogs) {
-  const sellerSelect = document.getElementById('sellerFilter');
-  const skuSelect = document.getElementById('skuFilter');
-
-  sellerSelect.innerHTML = '<option value="">Все продавцы</option>' +
-    catalogs.sellers.map(s => `<option value="${s.id}">${s.first_name} ${s.last_name}</option>`).join('');
-
-  skuSelect.innerHTML = '<option value="">Все товары</option>' +
-    catalogs.products.map(p => `<option value="${p.sku}">${p.name}</option>`).join('');
-}
-
-// Глобальная функция для пагинации (для onclick)
-window.changePage = function(newPage) {
-  const totalPages = Math.ceil(allSellers.length / SELLERS_PER_PAGE);
-  if (newPage < 1 || newPage > totalPages) return;
-
+/* ========== Pagination ========== */
+function changePage(newPage) {
+  if (newPage < 1) return;
   currentPage = newPage;
-  const paginatedSellers = getPaginatedSellers(allSellers, currentPage);
-  renderReport(paginatedSellers, allSellers.length, currentPage, SELLERS_PER_PAGE);
-};
-
-// --- Пагинация ---
-function getPaginatedSellers(sellers, page = 1) {
-  const start = (page - 1) * SELLERS_PER_PAGE;
-  const end = start + SELLERS_PER_PAGE;
-  return sellers.slice(start, end);
+  const start = (currentPage - 1) * SELLERS_PER_PAGE;
+  const pageData = allSellers.slice(start, start + SELLERS_PER_PAGE);
+  renderTable(pageData, allSellers.length, currentPage, SELLERS_PER_PAGE);
 }
 
-async function loadAndRender(params = queryParams) {
+/* ========== Загрузка, анализ и рендер (основной поток) ========== */
+async function loadAndRender() {
+  console.log('🔄 Starting loadAndRender...');
   try {
-    const data = await loadDataFromServer(params);
+    const data = await loadData();
 
-    // 1. Анализируем → получаем ВСЕХ продавцов
     allSellers = analyzeSalesData(data, {
       calculateRevenue: calculateSimpleRevenue,
       calculateBonus: calculateBonusByProfit
     });
+    console.log('✅ Analyzed sellers:', allSellers.length);
 
-    populateFilters(data);
+    // Отправляем агрегаты на сервер (fire-and-forget)
+    const payload = {
+      period_id: new Date().toISOString().slice(0, 7),
+      stats: allSellers.map(s => ({
+        seller_id: s.seller_id,
+        total_quantity: s.sales_count,
+        total_profit: s.profit,
+        total_revenue: s.revenue,
+        bonus: s.bonus
+      }))
+    };
+    updateSellerStats(payload).catch(e => console.warn("updateSellerStats failed:", e));
 
-    // 2. Сбрасываем на первую страницу при фильтрации
+    // Рендер чартов
+    const dashboard = data.dashboard;
+    const stats = {
+      salesOverTime: {
+        labels: dashboard.months?.map(m => m.month) || [],
+        values: dashboard.months?.map(m => m.revenue) || []
+      },
+      topSellers: {
+        names: dashboard.top_sellers?.map(s => `${s.first_name} ${s.last_name}`) || [],
+        revenue: dashboard.top_sellers?.map(s => s.total_revenue) || []
+      },
+      byCategory: {
+        labels: dashboard.categories?.map(c => c.category) || [],
+        values: dashboard.categories?.map(c => c.category_revenue) || []
+      }
+    };
+    try {
+      renderCharts(stats);
+      console.log('✅ Charts rendered');
+    } catch (e) {
+      console.warn('⚠ Charts failed:', e);
+    }
+
+    // Топ-товары
+    const topProds = await getTopProducts();
+    renderTopProductsSection(topProds);
+
+    populateFilters({ sellers: data.sellers, products: data.products, customers: data.customers });
+    const firstPage = allSellers.slice(0, SELLERS_PER_PAGE);
     currentPage = 1;
-
-    // 3. Берём только 5 продавцов
-    const paginatedSellers = getPaginatedSellers(allSellers, currentPage);
-
-    // 4. Рендерим
-    renderReport(paginatedSellers, allSellers.length, currentPage, SELLERS_PER_PAGE);
-
+    renderSummary(allSellers.length);
+    renderTable(firstPage, allSellers.length, 1, SELLERS_PER_PAGE);
+    console.log('✅ loadAndRender complete');
   } catch (err) {
-    console.error('Ошибка:', err);
+    console.error("loadAndRender error:", err);
+    const tbody = document.querySelector("#reportTable tbody");
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="8">Ошибка загрузки данных: ' + err.message + '</td></tr>';
+    }
   }
 }
 
-// ---------------------- АНИМАЦИЯ БУКВ В ЗАГОЛОВКЕ ----------------------
-/*function animateHeadline() {
-  const h1 = document.querySelector('.h1');
-  if (!h1) return;
+/* ========== UI: фильтры, handlers ========== */
+function setupUiHandlers() {
+  const applyBtn = document.getElementById("applyFilters");
+  const resetBtn = document.getElementById("resetFilters");
+  if (applyBtn) {
+    applyBtn.addEventListener("click", () => {
+      queryParams.search = (document.getElementById("search")?.value || "").trim();
+      queryParams.sellerId = (document.getElementById("sellerFilter")?.value || "");
+      queryParams.sku = (document.getElementById("skuFilter")?.value || "");
+      console.log('🔄 Applying filters:', queryParams);
+      loadAndRender();
+    });
+  } else {
+    console.warn('⚠ #applyFilters not found');
+  }
 
-  const text = h1.textContent.trim();
-  if (!text) return;
-
-  h1.innerHTML = '';
-  const letters = text.split('');
-
-  letters.forEach((letter, i) => {
-    const span = document.createElement('span');
-    span.className = 'letter';
-    span.textContent = letter === ' ' ? '\u00A0' : letter;
-    span.style.animationDelay = `${Math.random() * 0.6}s`;
-    h1.appendChild(span);
-  });
-
-  h1.offsetHeight;
-}*/
-/*
-// ---------------------- АНИМАЦИЯ БУКВ В ЗАГОЛОВКЕ ----------------------
-function animateHeadline() {
-  const h1 = document.querySelector('.h1');
-  if (!h1) return;
-
-  // Явно задаем строки
-  const lines = [
-    'Анализ продаж',    // первая строка
-    'в реальном',       // вторая строка
-    'времени'           // третья строка
-  ];
-
-  h1.innerHTML = ''; // очищаем заголовок
-  let delay = 0;
-
-  lines.forEach((line) => {
-    const lineSpan = document.createElement('span');
-    lineSpan.style.display = 'block'; // каждая строка на отдельной линии
-
-    for (let i = 0; i < line.length; i++) {
-      const letterSpan = document.createElement('span');
-      letterSpan.className = 'letter';
-      letterSpan.textContent = line[i];
-      letterSpan.style.display = 'inline-block';
-      letterSpan.style.animationDelay = `${delay + Math.random() * 0.3}s`;
-      lineSpan.appendChild(letterSpan);
-
-      delay += 0.05;
-    }
-
-    h1.appendChild(lineSpan);
-  });
-
-  // перерисовка для запуска анимации
-  void h1.offsetHeight;
-}*/
-
-function animateHeadline() {
-  const h1 = document.querySelector('.h1');
-  if (!h1) return;
-
-  const lines = [
-    'Анализ продаж',    // первая строка
-    'в реальном',       // вторая строка
-    'времени'           // третья строка
-  ];
-
-  h1.innerHTML = ''; // очищаем заголовок
-  let delay = 0;
-
-  lines.forEach(line => {
-    const lineSpan = document.createElement('span');
-    lineSpan.style.display = 'block';
-
-    for (let i = 0; i < line.length; i++) {
-      const letterSpan = document.createElement('span');
-      letterSpan.className = 'letter';
-      // Используем неразрывный пробел для пробелов
-      letterSpan.textContent = line[i] === ' ' ? '\u00A0' : line[i];
-      letterSpan.style.display = 'inline-block';
-      letterSpan.style.animationDelay = `${delay + Math.random() * 0.3}s`;
-      lineSpan.appendChild(letterSpan);
-      delay += 0.05;
-    }
-
-    h1.appendChild(lineSpan);
-  });
-
-  // перерисовка для запуска анимации
-  void h1.offsetHeight;
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      const searchInput = document.getElementById("search");
+      const sellerFilter = document.getElementById("sellerFilter");
+      const skuFilter = document.getElementById("skuFilter");
+      if (searchInput) searchInput.value = "";
+      if (sellerFilter) sellerFilter.value = "";
+      if (skuFilter) skuFilter.value = "";
+      queryParams = { page: 1, limit: 9999, search: "", sellerId: "", sku: "" };
+      console.log('🔄 Reset filters');
+      loadAndRender();
+    });
+  } else {
+    console.warn('⚠ #resetFilters not found');
+  }
 }
 
-// ---------------------- АНИМАЦИЯ БУКВ В ССЫЛКАХ МЕНЮ ----------------------
+/* ========== Анимации UI ========== */
+function animateHeadline() {
+  const h1 = document.querySelector('.h1');
+  if (!h1) {
+    console.warn('⚠ .h1 not found for animation');
+    return;
+  }
+  const lines = ['Анализ продаж', 'в реальном', 'времени'];
+  h1.innerHTML = '';
+  let delay = 0;
+  lines.forEach(line => {
+    const l = document.createElement('span');
+    l.style.display = 'block';
+    [...line].forEach(char => {
+      const s = document.createElement('span');
+      s.className = 'letter';
+      s.textContent = char === ' ' ? '\u00A0' : char;
+      s.style.animationDelay = `${delay + Math.random() * 0.3}s`;
+      delay += 0.05;
+      l.appendChild(s);
+    });
+    h1.appendChild(l);
+  });
+  console.log('✅ Headline animated');
+}
+
 function animateMenuLinks() {
   const links = document.querySelectorAll('.menu a');
-
+  if (links.length === 0) {
+    console.warn('⚠ .menu a not found for animation');
+    return;
+  }
   links.forEach(link => {
     const text = link.textContent.trim();
     if (!text) return;
-
-    // Сохраняем оригинальный текст
-    link.dataset.originalText = text;
-
-    // Оборачиваем каждую букву в span
     link.innerHTML = '';
-    text.split('').forEach(letter => {
+    [...text].forEach(letter => {
       const span = document.createElement('span');
       span.textContent = letter === ' ' ? '\u00A0' : letter;
       link.appendChild(span);
     });
-
-     // Добавляем hover-анимацию
     link.addEventListener('mouseenter', () => {
-      const spans = link.querySelectorAll('span');
-      spans.forEach(span => {
-        span.classList.remove('letter'); // сброс старой анимации
-        void span.offsetWidth; // перезапуск анимации (рефлоу)
+      link.querySelectorAll('span').forEach(span => {
+        span.classList.remove('letter');
+        void span.offsetWidth;
         span.classList.add('letter');
         span.style.animationDelay = `${Math.random() * 0.4}s`;
       });
     });
   });
+  console.log('✅ Menu links animated:', links.length);
 }
 
-// ---------------------- ОСНОВНОЙ ЗАПУСК ----------------------
-
-/*async function main() {
-  try {
-    console.log('🔄 Загружаем данные с сервера...');
-    const data = await loadDataFromServer(queryParams);
-
-    console.log(`✅ Загружено ${data.purchase_records.length} записей (из ${data.total})`);
-    console.log('📦 Продавцы:', data.sellers.length);
-    console.log('📦 Товары:', data.products.length);
-
-    const results = analyzeSalesData(data, {
-      calculateRevenue: calculateSimpleRevenue,
-      calculateBonus: calculateBonusByProfit
-    });
-
-    console.log('📊 Результаты анализа:', results);
-  } catch (err) {
-    console.error('❌ Ошибка при выполнении анализа:', err);
-  }
-}*/
-
-// и тут ее продолжение, так как рендер вызывается отсюда
-async function main() {
-  try {
-    console.log('🔄 Загружаем данные с сервера...');
-    // Сначала анимируем заголовок
-    animateHeadline();
-    const filtersPanel = document.querySelector('.filters-panel');
-    if (filtersPanel) {
-      // Немного задержки, чтобы не конфликтовать с заголовком
-      setTimeout(() => {
-        filtersPanel.classList.add('animate');
-      }, 600);
-    }
-    await loadAndRender(queryParams);  // Фикс: теперь рендерит UI
-  } catch (err) {
-    console.error('❌ Ошибка при выполнении анализа:', err);
-  }
-}
-
-// Инициализация после загрузки страницы
+/* ========== INIT ========= */
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('✅ DOM loaded, starting init');
   animateHeadline();
   animateMenuLinks();
+  setupUiHandlers();
+  loadAndRender();
 });
-
-// ---------------------- ОБРАБОТКА ФИЛЬТРОВ ----------------------
-/* document.getElementById('applyFilters').addEventListener('click', async () => {
-  queryParams.search = document.getElementById('search').value;
-  queryParams.sellerId = document.getElementById('sellerFilter').value;
-  queryParams.sku = document.getElementById('skuFilter').value;
-
-  const data = await loadDataFromServer(queryParams);
-  const results = analyzeSalesData(data, {
-    calculateRevenue: calculateSimpleRevenue,
-    calculateBonus: calculateBonusByProfit
-  });
-  renderReport(results);
-});
-
-main(); */
-
-const applyBtn = document.getElementById('applyFilters');
-if (applyBtn) {
-  applyBtn.addEventListener('click', async () => {
-    try {
-      const searchEl = document.getElementById('search');
-      const sellerEl = document.getElementById('sellerFilter');
-      const skuEl = document.getElementById('skuFilter');
-
-      if (searchEl) queryParams.search = searchEl.value.trim();
-      if (sellerEl) queryParams.sellerId = sellerEl.value;
-      if (skuEl) queryParams.sku = skuEl.value;
-
-      // Сброс страницы при фильтрации
-      currentPage = 1;
-      queryParams.page = 1;  // можно оставить, если сервер использует
-
-      // Перезагружаем и рендерим
-      await loadAndRender(queryParams);
-    } catch (err) {
-      console.error('Ошибка фильтрации:', err);
-    }
-  });
-} else {
-  console.warn('Кнопка #applyFilters не найдена');
-}
-
-main();

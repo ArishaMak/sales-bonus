@@ -1,0 +1,39 @@
+### Проверка: список продавцов
+GET http://localhost:5000/api/sellers
+
+###
+
+### Проверка: общая статистика продавцов
+GET http://localhost:5000/api/sellers-stats
+
+###
+
+### Проверка: покупки (продажи)
+GET http://localhost:5000/api/purchases
+
+###
+
+### Проверка: обновление KPI продавца
+POST http://localhost:5000/api/update-seller-stats
+Content-Type: application/json
+
+{
+  "seller_id": 1,
+  "revenue": 12345,
+  "profit": 6789,
+  "bonus": 2000,
+  "sales_count": 5,
+  "avg_receipt": 1500,
+  "avg_profit": 900
+}
+
+###
+
+### Проверка: один продавец
+GET http://localhost:5000/api/seller/1
+
+###
+
+### Проверка: топ-товары у продавца
+GET http://localhost:5000/api/seller/1/top-products
+
