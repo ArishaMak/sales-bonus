@@ -1,19 +1,32 @@
 // frontend/src/modules/api.js
+
+// БАЗОВЫЙ АДРЕС API (важно!)
+export const API_BASE = "/api";
+
+/**
+ * Получает каталоги (продукты, продавцы, покупатели).
+ */
 export async function getCatalogs() {
-    const r = await fetch("/api/catalogs");
+    const r = await fetch(`${API_BASE}/catalogs`);
     if (!r.ok) throw new Error("Catalogs failed");
     return r.json();
 }
 
+/**
+ * Получает записи о покупках.
+ */
 export async function getRecords(params = {}) {
     const query = new URLSearchParams(params).toString();
-    const r = await fetch(`/api/records?${query}`);
+    const r = await fetch(`${API_BASE}/records?${query}`);
     if (!r.ok) throw new Error("Records failed");
     return r.json();
 }
 
+/**
+ * Обновляет статистику продавцов.
+ */
 export async function updateSellerStats({ period_id, stats }) {
-    const r = await fetch("/api/update-seller-stats", {
+    const r = await fetch(`${API_BASE}/update-seller-stats`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ period_id, stats })
@@ -22,17 +35,11 @@ export async function updateSellerStats({ period_id, stats }) {
     return r.json();
 }
 
+/**
+ * Получает KPI конкретного продавца.
+ */
 export async function getSellerKPI(sellerId) {
-    const r = await fetch(`/api/kpi/${encodeURIComponent(sellerId)}`);
+    const r = await fetch(`${API_BASE}/kpi/${encodeURIComponent(sellerId)}`);
     if (!r.ok) throw new Error("KPI failed");
     return r.json();
-}
-
-export async function getSellerFull(sellerId) {
-    const response = await fetch(`/api/seller-full?seller_id=${sellerId}`);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch seller data for ID ${sellerId}`);
-    }
-    const data = await response.json();
-    return data;
 }
