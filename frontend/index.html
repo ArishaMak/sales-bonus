@@ -13,8 +13,6 @@
         img-src 'self' data: blob: https:;
         connect-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://api.example.com;
       ">
-
-    <!-- Удалён meta CSP — используй server CSP, чтобы не блокировать CDN/fonts -->
     <title>Анализ продаж магазина</title>
     <link rel="stylesheet" href="./css/fonts.css" />
     <link rel="stylesheet" href="./css/globals.css" />
@@ -36,13 +34,13 @@
                     <span>ShopAnalytics</span>
                 </a>
                 <nav class="menu">
-                    <a href="#dashboard" onclick="showPage('dashboard-page')">Дашборд</a>
+                    <a id="dashboardBtn" href="javascript:void(0)">Дашборд</a>
                     <a href="#reports" onclick="showPage('reports-page')">Отчёты</a>
                     <a href="#settings" onclick="showPage('settings-page')">Настройки</a>
                 </nav>
                 <div class="header-actions flexbox" style="gap: 1em;">
-                    <button class="btn btn-secondary" onclick="openModal('loginModal')">Войти</button>
-                    <button class="btn btn-primary" onclick="openModal('registerModal')">Регистрация</button>
+                    <button id="loginBtn" class="btn btn-secondary">Войти</button>
+                    <button id="registerBtn" class="btn btn-primary">Регистрация</button>
                 </div>
                 <button class="mobile-toggle" aria-label="Меню">
                     <span></span><span></span><span></span>
@@ -101,38 +99,36 @@
                             <button class="btn btn-secondary">Экспорт CSV</button>
                         </div>
                     </div>
-                    <!-- Краткая сводка — с placeholders для дашборда (ИЗМЕНЕНИЕ: добавлены span с ID для dashboard.js рендера) -->
+                    <!-- Краткая сводка — с placeholders для дашборда -->
                     <div id="summary" class="summary-cards">
-                        <div class="card">Продукты: <span id="totalProducts">0</span></div> <!-- ДОБАВЛЕНО: placeholder для total_products -->
-                        <div class="card">Записи: <span id="totalRecords">0</span></div> <!-- ДОБАВЛЕНО: placeholder для total_records -->
-                        <div class="card">Клиенты: <span id="totalCustomers">0</span></div> <!-- ДОБАВЛЕНО: placeholder для total_customers -->
+                        <div class="card">Продукты: <span id="totalProducts">0</span></div>
+                        <div class="card">Записи: <span id="totalRecords">0</span></div>
+                        <div class="card">Клиенты: <span id="totalCustomers">0</span></div>
                     </div>
                     <!-- Таблица -->
                     <div class="table-container">
                         <table id="reportTable" class="table table-striped">
-    <thead>
-        <tr>
-            <!-- Убедитесь, что здесь ровно 8 колонок (<th>) -->
-            <th>Продавец</th>
-            <th>Выручка</th>
-            <th>Прибыль</th>
-            <th>Продаж</th>
-            <th>KPI</th>
-            <th>Бонус</th>
-            <th>Топ-товары</th>
-            <th>Действия</th>
-        </tr>
-    </thead>
-    <!-- Тело таблицы будет генерироваться вашим JavaScript -->
-    <tbody id="sellerTableBody">
-        <!-- ... здесь вставляются строки из table.js ... -->
-    </tbody>
-</table>
+                            <thead>
+                                <tr>
+                                    <th>Продавец</th>
+                                    <th>Выручка</th>
+                                    <th>Прибыль</th>
+                                    <th>Продаж</th>
+                                    <th>KPI</th>
+                                    <th>Бонус</th>  
+                                    <th>Топ-товары</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sellerTableBody">
+                                <!-- ... здесь вставляются строки из table.js ... -->
+                            </tbody>
+                        </table>
                     </div>
                     <div id="pagination">
                         <!-- Пагинация генерируется JS -->
                     </div>
-                    <!-- Топ-товары (из main.js) — ДОБАВЛЕНО: div для рендера topProductsSection -->
+                    <!-- Топ-товары -->
                     <div id="topProductsSection">
                         <!-- Генерируется JS -->
                     </div>
@@ -141,42 +137,40 @@
         </main>
     </div>
     <!-- Модалка продавца -->
-    <div id="sellerCardModal" class="modal">
-        <div class="modal-content">
-            <div id="sellerCardContent">
-                <!-- Рендерится JS -->
-            </div>
-        </div>
-    </div>
-    <!-- НОВОЕ: Модалка входа (Login Modal) -->
-    <div id="loginModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Вход</h3>
-                <button class="close-button" onclick="closeModal('loginModal')">&times;</button>
-            </div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="loginEmail">Email:</label>
-                    <input type="email" id="loginEmail" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Пароль:</label>
-                    <input type="password" id="loginPassword" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Войти</button>
-            </form>
-            <div id="loginMessage" style="margin-top: 1em; color: red;"></div>
-        </div>
-    </div>
+    <div id="sellerCardModal" class="modal">
+        <div class="modal-content">
+            <div id="sellerCardContent">
+                <!-- Рендерится JS -->
+            </div>
+        </div>
+    </div>
+    <!-- Модалка входа (Login Modal) -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Вход</h3>
+                <button class="close-button" id="closeLoginBtn">&times;</button>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Пароль:</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Войти</button>
+            </form>
+            <div id="loginMessage" style="margin-top: 1em; color: red;"></div>
+        </div>
+    </div>
     <!-- Модалка регистрации -->
-    <!-- ДОБАВЛЕНО: style="display: none;" для скрытия по умолчанию -->
     <div id="registerModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Регистрация</h3>
-                <!-- ОБНОВЛЕНО: Использует closeModal() -->
-                <button id="closeRegisterModal" class="close-button" onclick="closeModal('registerModal')">&times;</button>
+                <button class="close-button" id="closeRegisterModal">&times;</button>
             </div>
             <form id="registerForm">
                 <div class="form-group">
@@ -199,27 +193,19 @@
     <script type="module" src="./src/main.js"></script>
     <!-- JavaScript для управления модальными окнами -->
     <script type="module">
-        /**
-         * Функция для открытия модального окна.
-         * Устанавливает style.display = 'flex' для отображения.
-         * @param {string} modalId - ID модального окна (например, 'registerModal').
-         */
+        // Импорт для логина
+        import { loginUser } from "./src/modules/auth.js";
+
+        // Глобальные функции (делаем их доступными для onclick, но используем addEventListener)
         window.openModal = function(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
-                // Используем flex, чтобы центрировать модалку, если это заложено в исходном CSS .modal
-                // Если нет, это обеспечит хотя бы базовое отображение.
-                modal.style.display = 'flex'; 
+                modal.style.display = 'flex';
                 modal.setAttribute('aria-modal', 'true');
                 modal.setAttribute('role', 'dialog');
             }
-        }
+        };
 
-        /**
-         * Функция для закрытия модального окна.
-         * Устанавливает style.display = 'none' для скрытия.
-         * @param {string} modalId - ID модального окна.
-         */
         window.closeModal = function(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
@@ -227,17 +213,13 @@
                 modal.removeAttribute('aria-modal');
                 modal.removeAttribute('role');
             }
-        }
+        };
 
-        // --- Заглушки для других функций, чтобы избежать ошибок ---
-
-        // Заглушка для функции навигации
+        // Заглушки
         window.showPage = function(pageId) {
             console.log(`Навигация к странице: ${pageId}`);
-            // В реальном приложении здесь будет логика переключения вкладок
-        }
+        };
 
-        // Заглушка для функции открытия карточки продавца
         window.openSellerCard = function(sellerData) {
             console.log('Открытие карточки продавца:', sellerData);
             const content = document.getElementById('sellerCardContent');
@@ -245,32 +227,120 @@
                 content.innerHTML = `<p>Детали продавца ${sellerData.name} будут здесь.</p>`;
             }
             openModal('sellerCardModal');
-        }
+        };
 
-        // Дополнительные обработчики для закрытия по клику вне модалки
+        // Обработчик кнопки "Дашборд"
         document.addEventListener('DOMContentLoaded', () => {
+            const userId = localStorage.getItem("userId");
+            const dashboardBtn = document.getElementById("dashboardBtn");
+            if (dashboardBtn) {
+                dashboardBtn.addEventListener("click", () => {
+                    if (!userId) {
+                        alert("Сначала войдите в аккаунт");
+                        openModal('loginModal');
+                        return;
+                    }
+                    window.location.href = "/dashboard.html";
+                });
+                // Скрыть кнопку, если не авторизован
+                if (!userId) {
+                    dashboardBtn.style.display = "none";
+                }
+            }
+
+            // Обработчики кнопок "Войти" и "Регистрация" (замена onclick)
+            const loginBtn = document.getElementById("loginBtn");
+            const registerBtn = document.getElementById("registerBtn");
+            if (loginBtn) loginBtn.addEventListener("click", () => openModal('loginModal'));
+            if (registerBtn) registerBtn.addEventListener("click", () => openModal('registerModal'));
+
+            // Закрытие модалок по крестику
+            const closeLoginBtn = document.getElementById("closeLoginBtn");
+            const closeRegisterBtn = document.getElementById("closeRegisterModal");
+            if (closeLoginBtn) closeLoginBtn.addEventListener("click", () => closeModal('loginModal'));
+            if (closeRegisterBtn) closeRegisterBtn.addEventListener("click", () => closeModal('registerModal'));
+
+            // Закрытие по клику вне модалки
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
-                    // Закрываем, только если клик был непосредственно по фону модалки (modal)
                     if (e.target.id === modal.id) {
                         closeModal(modal.id);
                     }
                 });
             });
 
-            // Заглушки для отправки форм
-            document.getElementById('loginForm')?.addEventListener('submit', (e) => {
-                e.preventDefault();
-                document.getElementById('loginMessage').textContent = 'Вход (имитация).';
-                console.log('Login attempt');
-            });
-            document.getElementById('registerForm')?.addEventListener('submit', (e) => {
-                e.preventDefault();
-                document.getElementById('regMessage').textContent = 'Регистрация успешна (имитация).';
-                console.log('Registration attempt');
-            });
-        });
+            // Обработчик формы логина
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const loginMessage = document.getElementById('loginMessage');
+                    loginMessage.textContent = '';
+                    loginMessage.style.color = '';
 
+                    const email = document.getElementById('loginEmail').value;
+                    const password = document.getElementById('loginPassword').value;
+
+                    try {
+                        const data = await loginUser({ email, password });
+                        loginMessage.textContent = `Вход успешен! Добро пожаловать, ${data.name || email}!`;
+                        loginMessage.style.color = 'green';
+                        setTimeout(() => {
+                            closeModal('loginModal');
+                            loginForm.reset();
+                            window.location.href = "/dashboard.html";
+                        }, 1500);
+                    } catch (error) {
+                        loginMessage.textContent = error.message || 'Ошибка входа. Проверьте данные.';
+                        loginMessage.style.color = 'red';
+                        console.error('Login failed:', error);
+                    }
+                });
+            }
+
+            // Обработчик формы регистрации
+            const registerForm = document.getElementById('registerForm');
+            if (registerForm) {
+                registerForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const regMessage = document.getElementById('regMessage');
+                    regMessage.textContent = '';
+                    regMessage.style.color = '';
+
+                    const email = document.getElementById('regEmail').value;
+                    const password = document.getElementById('regPassword').value;
+                    const name = document.getElementById('regName').value;
+
+                    try {
+                        const response = await fetch('/api/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password, name }),
+                        });
+                        const data = await response.json();
+
+                        if (response.ok) {
+                            regMessage.textContent = `Регистрация успешна! Добро пожаловать, ${data.name || name}!`;
+                            regMessage.style.color = 'green';
+                            setTimeout(() => {
+                                closeModal('registerModal');
+                                registerForm.reset();
+                                window.location.href = "/dashboard.html";
+                            }, 1500);
+                        } else {
+                            const errorMessage = data.message || data.error || 'Ошибка регистрации. Попробуйте снова.';
+                            regMessage.textContent = errorMessage;
+                            regMessage.style.color = 'red';
+                            console.error('Registration failed:', errorMessage);
+                        }
+                    } catch (error) {
+                        regMessage.textContent = 'Ошибка сети. Проверьте соединение с сервером.';
+                        regMessage.style.color = 'red';
+                        console.error('Network or critical error:', error);
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

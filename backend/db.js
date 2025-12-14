@@ -6,11 +6,8 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-// Загружаем .env корректным путём (минимальное изменение)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// Минимальное улучшение: выносим конфиг в объект
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -22,12 +19,9 @@ const dbConfig = {
   queueLimit: 0
 };
 
-// Создаём пул (как было)
 export const pool = mysql.createPool(dbConfig);
 
-export default pool;  // нужно для default-импорта в сервисах
-
-// ------------------ ДОБАВЛЕНО МИНИМАЛЬНО ------------------
+export default pool;
 
 // Создание таблицы users
 async function createUsersTable() {
@@ -48,39 +42,110 @@ async function createUsersTable() {
   }
 }
 
-// Тест подключения
-async function testDB() {
+// Создание таблицы sellers (фикс: seller_id INT, FOREIGN KEY на users.id, удалены дубли email/password)
+async function createSellersTable() {
+  try {
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS sellers (
+        seller_id INT PRIMARY KEY, -- Фикс: INT, FK на users.id
+        first_name VARCHAR(50),
+        last_name VARCHAR(50),
+        department VARCHAR(50),
+        bonus DECIMAL(10,2) DEFAULT 0.00,
+        total_revenue DECIMAL(14,2) DEFAULT 0.00,
+        total_profit DECIMAL(14,2) DEFAULT 0.00,
+        total_quantity INT DEFAULT 0,
+        plan_revenue DECIMAL(14,2) DEFAULT 10000.00,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+    console.log('✅ Sellers table created or exists');
+  } catch (err) {
+    console.error('❌ Sellers table creation failed:', err);
+  }
+}
+
+// Тест подключения + создание таблиц
+export async function testDB() {
   try {
     const [result] = await pool.query('SELECT COUNT(*) as cnt FROM sellers');
     console.log('✅ DB connected, sellers count:', result[0].cnt);
 
-    // добавлено по рекомендации: проверяем и создаём users
     await createUsersTable();
+    await createSellersTable(); // Добавлено
 
   } catch (err) {
     console.error('❌ DB failed:', err.message);
   }
 }
 
-// --- Добавляем обратно функцию createUser --- //
-
+// createUser (обновлённый: авто-INSERT в sellers после users)
 export async function createUser(email, passwordHash, name) {
+  const connection = await pool.getConnection();
+
   try {
-    const [result] = await pool.execute(
+    await connection.beginTransaction();
+
+    const nameParts = name.split(' ');
+    const firstName = nameParts[0] || 'Новый';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Продавец';
+
+    // 1. INSERT in users
+    const [userResult] = await connection.execute(
       'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
       [email, passwordHash, name]
     );
+    const newUserId = userResult.insertId;
 
-    console.log(`👤 User created ID: ${result.insertId}`);
-    return { id: result.insertId, email, name };
+    // 2. Авто-INSERT in sellers (fallback профиль)
+    await connection.execute(
+      `INSERT INTO sellers (seller_id, first_name, last_name, department, bonus) 
+       VALUES (?, ?, ?, 'Не назначен', 0.00)`,
+      [newUserId, firstName, lastName]
+    );
+
+    await connection.commit();
+
+    console.log(`👤 User created ID: ${newUserId}`);
+    console.log(`🧑 Seller record created ID: ${newUserId}`);
+
+    return { id: newUserId, email, name };
 
   } catch (error) {
+    await connection.rollback();
+
     if (error.code === 'ER_DUP_ENTRY') {
       throw new Error('Email уже используется');
     }
     throw error;
+  } finally {
+    connection.release();
   }
 }
 
-// Автоматически вызываем тест при запуске
+// activateSellerProfile (обновлённый: использовать INT seller_id)
+export async function activateSellerProfile(userId, data) {
+  const { first_name, last_name, department, bonus } = data;
+
+  const [existing] = await pool.query('SELECT seller_id FROM sellers WHERE seller_id = ?', [userId]);
+
+  if (existing.length > 0) {
+    await pool.execute(
+      `UPDATE sellers SET first_name = ?, last_name = ?, department = ?, bonus = ?, updated_at = NOW() 
+       WHERE seller_id = ?`,
+      [first_name, last_name, department, bonus, userId]
+    );
+    return { message: 'Профиль обновлён' };
+  } else {
+    await pool.execute(
+      `INSERT INTO sellers (seller_id, first_name, last_name, department, bonus, total_revenue, total_profit, total_quantity)
+       VALUES (?, ?, ?, ?, ?, 0, 0, 0)`,
+      [userId, first_name, last_name, department, bonus]
+    );
+    return { message: 'Профиль создан' };
+  }
+}
+
+// Авто-тест при запуске
 testDB();
