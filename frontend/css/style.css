@@ -1247,3 +1247,36 @@ body {
     min-width: 80px;
     text-align: right; /* Числа лучше выравнивать по правому краю */
 }
+
+.profile-form {
+  margin: 2em 0;
+  padding: 1.5em;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+}
+
+.form-group {
+  margin-bottom: 1em;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5em;
+  color: #fff;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75em;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  color: #fff;
+}
+
+#profileMessage {
+  color: #0f0;  /* Зеленый успех */
+}
+#profileMessage.error {
+  color: #f00;  /* Красный ошибка */
+}

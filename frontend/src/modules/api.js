@@ -121,3 +121,13 @@ export async function registerUser({ email, password, name }) {
     }
     return result.user; // Возвращаем объект пользователя { id, email, name }
 }
+
+export async function saveSellerProfile(payload) {
+  const r = await fetch(`${API_BASE}/profile/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  if (!r.ok) throw new Error('Profile update failed');
+  return r.json();
+}

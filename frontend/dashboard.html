@@ -5,20 +5,16 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Личный кабинет — ShopAnalytics</title>
-    <!-- Те же стили, как на главной -->
     <link rel="stylesheet" href="./css/fonts.css" />
     <link rel="stylesheet" href="./css/globals.css" />
     <link rel="stylesheet" href="./css/variables.css" />
     <link rel="stylesheet" href="./css/style.css" />
     <link rel="stylesheet" href="./css/dark.css" />
     <link rel="stylesheet" href="./css/light.css" />
-    <!-- Chart.js для будущих чартов (опционально) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="page">
-    <!-- Layout — аналогично главной -->
     <div class="page-layout">
-        <!-- Хедер — похожий, но с "Главная" и "Выйти" -->
         <header class="header">
             <div class="wrapper flexbox middle">
                 <a href="/" class="logotype">
@@ -26,7 +22,7 @@
                     <span>ShopAnalytics</span>
                 </a>
                 <nav class="menu">
-                    <a href="/">Главная</a> <!-- Возврат на главную -->
+                    <a href="/">Главная</a>
                     <a href="#reports" onclick="showPage('reports-page')">Отчёты</a>
                     <a href="#settings" onclick="showPage('settings-page')">Настройки</a>
                 </nav>
@@ -38,7 +34,7 @@
                 </button>
             </div>
         </header>
-        <!-- Hero + Персональный контент -->
+
         <main class="hero">
             <div class="cosmic-bg">
                 <div class="stars"></div>
@@ -55,105 +51,109 @@
                             <h1 class="h5" data-text="Личный кабинет">Личный кабинет</h1>
                             <p id="userName" class="header__paragraph" style="font-size: 1.6em; color: var(--gray); max-width: 50ch; margin: 1.5em 0;"></p>
                         </div>
-                        <!-- Форма профиля (вводимые данные) -->
-                        <div id="profileFormSection" class="profile-form-section mb-6">
-                            <!-- Рендерится JS: DashboardView(userData) -->
-                        </div>
                     </div>
                 </div>
             </div>
-            <!-- Результаты: Персональная таблица (как на главной, но для 1 строки) -->
-            <section id="personalResults" class="results-section">
+
+            <!-- Статистика (read-only) -->
+            <section class="results-section">
                 <div class="wrapper">
                     <div class="section-header flexbox middle">
                         <h2>Ваша статистика</h2>
                     </div>
-                    <!-- Сводка (placeholders для рендера) -->
                     <div id="personalSummary" class="summary-cards">
                         <div class="card">Продаж: <span id="personalSalesCount">0</span></div>
                         <div class="card">Выручка: <span id="personalRevenue">0 ₽</span></div>
                         <div class="card">Прибыль: <span id="personalProfit">0 ₽</span></div>
+                        <div class="card">KPI: <span id="personalKPI">0%</span></div>
+                        <div class="card">Бонус: <span id="personalBonus">0 ₽</span></div>
                     </div>
-                    <!-- Таблица (персональная, 1 строка) -->
-                    <div class="table-container">
-                        <table id="personalReportTable" class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Продавец</th>
-                                    <th>Выручка</th>
-                                    <th>Прибыль</th>
-                                    <th>Продаж</th>
-                                    <th>KPI</th>
-                                    <th>Бонус</th>
-                                    <th>Топ-товары</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody id="personalSellerTableBody">
-                                <!-- Рендерится JS: 1 строка пользователя -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <!-- Топ-товары пользователя -->
-                    <div id="personalTopProductsSection">
-                        <!-- Рендерится JS -->
-                    </div>
+                </div>
+            </section>
+
+            <!-- Форма редактирования (только имя, фамилия, отдел) -->
+            <section id="profileFormSection" class="profile-form">
+                <div class="wrapper">
+                    <h3>Редактирование профиля</h3>
+                    <form id="profileForm">
+                        <div class="form-group">
+                            <label for="firstName">Имя:</label>
+                            <input type="text" id="firstName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Фамилия:</label>
+                            <input type="text" id="lastName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="department">Отдел:</label>
+                            <input type="text" id="department" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </form>
+                    <p id="profileMessage" style="margin-top: 1em; font-weight: bold;"></p>
+                </div>
+            </section>
+            <section id="salesFormSection" class="sales-form">
+    <div class="wrapper">
+        <h3>Добавить продажу</h3>
+        <form id="salesForm">
+            <div class="form-group">
+                <label for="saleDate">Дата продажи:</label>
+                <input type="date" id="saleDate" required>
+            </div>
+            <div class="form-group">
+                <label for="sku">SKU товара:</label>
+                <input type="text" id="sku" required placeholder="Например, SKU001">
+            </div>
+            <div class="form-group">
+                <label for="quantity">Количество:</label>
+                <input type="number" id="quantity" min="1" required>
+            </div>
+            <div class="form-group">
+                <label for="price">Цена продажи (₽):</label>
+                <input type="number" step="0.01" id="price" required>
+            </div>
+            <div class="form-group">
+                <label for="discount">Скидка (%):</label>
+                <input type="number" step="0.01" id="discount" min="0" value="0">
+            </div>
+            <button type="submit" class="btn btn-primary">Добавить продажу</button>
+        </form>
+        <p id="salesMessage" style="margin-top: 1em; font-weight: bold;"></p>
+    </div>
+</section>
+
+            <!-- Топ-товары -->
+            <section id="personalTopProductsSection" class="top-products-section">
+                <div class="wrapper">
+                    <h3>Топ товаров (по количеству)</h3>
+                    <!-- Рендерится JS -->
                 </div>
             </section>
         </main>
     </div>
-    <!-- Скрипты -->
-   <script type="module">
-    import { initDashboard } from "./src/modules/dashboard.js";
 
-    // Заглушки
-    window.showPage = function(pageId) { console.log(`Навигация: ${pageId}`); };
+    <script type="module">
+        import { initDashboard } from "./components/dashboard.js";  // Или ваш путь
 
-    // INLINE logout с дебагами
-    function logout() {
-        console.log('🔓 Logout function called'); // Лог: вызов функции
-        localStorage.removeItem("userId");
-        console.log('🔓 userId removed from localStorage'); // Лог: удаление
-        window.location.href = "/"; // Редирект на главную
-        console.log('🔓 Redirect to / initiated'); // Лог: редирект (может не дойти)
-    }
+        window.showPage = function(pageId) { console.log(`Навигация: ${pageId}`); };
 
-    // Инициализация
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('🚀 Dashboard DOMContentLoaded fired'); // Лог: DOM готов
-
-        // Обработчик "Выйти" с дебагами
-        const logoutBtn = document.getElementById("logoutBtn");
-        console.log('🔍 Logout button found:', logoutBtn); // Лог: кнопка найдена?
-        if (logoutBtn) {
-            logoutBtn.addEventListener("click", (e) => {
-                e.preventDefault();
-                console.log('🔓 Click on logout detected'); // Лог: клик
-                logout(); // Вызов
-            });
-        } else {
-            console.error('❌ #logoutBtn not found — check ID in HTML'); // Если null
-        }
-
-        // Fallback: onclick на кнопке (если listener не сработал)
-        const fallbackBtn = document.querySelector('#logoutBtn'); // Повторная проверка
-        if (fallbackBtn) {
-            fallbackBtn.onclick = logout; // Прямой onclick
-            console.log('🔍 Fallback onclick added to logoutBtn');
-        }
-
-        // Инициализация дашборда
-        const userId = localStorage.getItem("userId");
-        console.log('🔍 Dashboard userId:', userId); // Лог: ID
-        const profileRoot = document.getElementById("profileFormSection");
-        const summaryRoot = document.getElementById("personalSummary");
-        if (userId) {
-            initDashboard(parseInt(userId), profileRoot, summaryRoot);
-        } else {
-            console.warn('⚠ No userId in dashboard — redirecting');
+        function logout() {
+            localStorage.removeItem("userId");
             window.location.href = "/";
         }
-    });
-</script>
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const logoutBtn = document.getElementById("logoutBtn");
+            if (logoutBtn) logoutBtn.addEventListener("click", logout);
+
+            const userId = localStorage.getItem("userId");
+            if (userId) {
+                initDashboard(parseInt(userId));
+            } else {
+                window.location.href = "/";
+            }
+        });
+    </script>
 </body>
 </html>

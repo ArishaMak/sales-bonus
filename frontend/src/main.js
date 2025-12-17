@@ -32,11 +32,14 @@ function calculateSimpleRevenue(item, product) {
   return sale_price * quantity * (1 - discount / 100);
 }
 
-function calculateBonusByProfit(index, total, seller) {
-  if (index === 0) return (seller.profit || 0) * 0.15;
-  if (index === 1 || index === 2) return (seller.profit || 0) * 0.1;
-  if (index === total - 1) return 0;
-  return (seller.profit || 0) * 0.05;
+function calculateBonusByRevenue(index, total, seller) {
+  const revenue = Number(seller.revenue || 0);
+  if (revenue <= 0) return 0;
+
+  if (index === 0) return revenue * 0.03;        // топ-1
+  if (index === 1 || index === 2) return revenue * 0.02; // топ-2,3
+  if (index === total - 1) return 0;             // последний
+  return revenue * 0.01;                         // остальные
 }
 
 /* ========== Аналитика: собираем статистику продавцов ========== */
@@ -91,7 +94,7 @@ function analyzeSalesData(data, options = {}) {
   });
 
   const arr = Object.values(sellersMap);
-  arr.sort((a, b) => (b.profit || 0) - (a.profit || 0));
+  arr.sort((a, b) => (b.revenue || 0) - (a.revenue || 0));
   arr.forEach((s, idx, all) => {
     s.bonus = calculateBonus(idx, all.length, s);
     s.top_products = Object.entries(s.products_sales || {})
@@ -381,9 +384,10 @@ async function loadAndRender() {
 
     // Анализ продавцов
     allSellers = analyzeSalesData(data, {
-      calculateRevenue: calculateSimpleRevenue,
-      calculateBonus: calculateBonusByProfit
-    });
+    calculateRevenue: calculateSimpleRevenue,
+    calculateBonus: calculateBonusByRevenue
+  });
+
 
     // Сортировка по поиску
     allSellers = sortBySearch(allSellers, queryParams.search);
