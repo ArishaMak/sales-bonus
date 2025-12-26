@@ -10,13 +10,8 @@ router.get('/:sellerId', async (req, res) => {
       return res.status(400).json({ error: 'Invalid sellerId' });
     }
 
-    // --------------------------------------------------
-    // SELLER
-    // --------------------------------------------------
     const [[seller]] = await pool.query(
-      `SELECT seller_id, first_name, last_name 
-       FROM sellers 
-       WHERE seller_id = ?`,
+      'SELECT seller_id, first_name, last_name FROM sellers WHERE seller_id = ?',
       [sellerId]
     );
 
@@ -24,13 +19,8 @@ router.get('/:sellerId', async (req, res) => {
       return res.status(404).json({ error: 'Seller not found' });
     }
 
-    // --------------------------------------------------
-    // PURCHASES
-    // --------------------------------------------------
     const [purchases] = await pool.query(
-      `SELECT purchase_id, purchase_date
-       FROM purchase_records
-       WHERE seller_id = ?`,
+      'SELECT purchase_id, purchase_date FROM purchase_records WHERE seller_id = ?',
       [sellerId]
     );
 
@@ -52,13 +42,8 @@ router.get('/:sellerId', async (req, res) => {
     }
 
     const purchaseIds = purchases.map(p => p.purchase_id);
-
-    // --------------------------------------------------
-    // ITEMS
-    // --------------------------------------------------
     const [items] = await pool.query(
-      `
-      SELECT 
+      `SELECT 
         pi.purchase_id,
         pi.sku,
         pi.quantity,
@@ -69,21 +54,16 @@ router.get('/:sellerId', async (req, res) => {
       FROM purchase_items pi
       JOIN products p ON p.sku = pi.sku
       LEFT JOIN categories c ON c.category_id = p.category_id
-      WHERE pi.purchase_id IN (?)
-      `,
+      WHERE pi.purchase_id IN (?)`,
       [purchaseIds]
     );
 
     let revenue = 0;
     let profit = 0;
-
     const productMap = {};
     const categoryMap = {};
     const purchaseAggregates = {};
 
-    // --------------------------------------------------
-    // AGGREGATION
-    // --------------------------------------------------
     items.forEach(i => {
       const itemRevenue = i.price * i.quantity;
       const itemProfit = itemRevenue - (i.purchase_price * i.quantity);
@@ -91,12 +71,10 @@ router.get('/:sellerId', async (req, res) => {
       revenue += itemRevenue;
       profit += itemProfit;
 
-      // purchase aggregates
       purchaseAggregates[i.purchase_id] ??= { revenue: 0, profit: 0 };
       purchaseAggregates[i.purchase_id].revenue += itemRevenue;
       purchaseAggregates[i.purchase_id].profit += itemProfit;
 
-      // products
       productMap[i.sku] ??= {
         sku: i.sku,
         name: i.name,
@@ -109,21 +87,16 @@ router.get('/:sellerId', async (req, res) => {
       productMap[i.sku].totalRevenue += itemRevenue;
       productMap[i.sku].totalProfit += itemProfit;
 
-      // categories
       if (i.category) {
         categoryMap[i.category] = (categoryMap[i.category] || 0) + itemRevenue;
       }
     });
 
-    // --------------------------------------------------
-    // SALES ROWS
-    // --------------------------------------------------
     const salesRows = purchases.map(p => {
       const agg = purchaseAggregates[p.purchase_id] || { revenue: 0, profit: 0 };
-      const day =
-        p.purchase_date instanceof Date
-          ? p.purchase_date.toISOString().slice(0, 10)
-          : String(p.purchase_date).slice(0, 10);
+      const day = p.purchase_date instanceof Date
+        ? p.purchase_date.toISOString().slice(0, 10)
+        : String(p.purchase_date).slice(0, 10);
 
       return {
         purchase_id: p.purchase_id,
@@ -133,9 +106,6 @@ router.get('/:sellerId', async (req, res) => {
       };
     });
 
-    // --------------------------------------------------
-    // SALES OVER TIME
-    // --------------------------------------------------
     const salesByDay = {};
     salesRows.forEach(r => {
       salesByDay[r.day] = (salesByDay[r.day] || 0) + r.revenue;
@@ -156,20 +126,12 @@ router.get('/:sellerId', async (req, res) => {
       .sort((a, b) => b.totalRevenue - a.totalRevenue)
       .slice(0, 10);
 
-    // --------------------------------------------------
-    // KPI
-    // --------------------------------------------------
     const salesCount = purchases.length;
     const avgCheck = salesCount ? revenue / salesCount : 0;
     const avgProfit = salesCount ? profit / salesCount : 0;
-
     const bonus = Math.round(profit * 0.1);
-    const kpi =
-      avgCheck >= 3000 ? 120 :
-      avgCheck >= 1500 ? 100 :
-      70;
+    const kpi = avgCheck >= 3000 ? 120 : avgCheck >= 1500 ? 100 : 70;
 
-    // --------------------------------------------------
     res.json({
       seller: seller.seller_id,
       avgCheck: Math.round(avgCheck),

@@ -5,23 +5,26 @@ function clear(element) {
     if (element) element.innerHTML = "";
 }
 
-/** Линейный график продаж по времени */
 export function buildSalesOverTimeChart(ctx, data) {
+    if (!data.labels || data.labels.length === 0) return null;
     return new Chart(ctx, {
         type: "line",
         data: {
             labels: data.labels,
             datasets: [{
-                label: "Продажи",
+                label: "Выручка",
                 data: data.values,
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
                 borderWidth: 2,
-                fill: false,
-                tension: 0.3
+                fill: true,
+                tension: 0.4
             }]
         },
         options: {
             responsive: true,
-            plugins: { legend: { display: true } }
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } }
         }
     });
 }
@@ -48,16 +51,23 @@ export function buildTopSellersChart(ctx, data) {
 
 /** Продажи по категориям (pie chart) */
 export function buildCategoryPieChart(ctx, data) {
+    if (!data.labels || data.labels.length === 0) return null;
     return new Chart(ctx, {
-        type: "pie",
+        type: "doughnut", // Doughnut выглядит современнее
         data: {
-            labels: data.labels,  // Fix: используем labels вместо categories
+            labels: data.labels,
             datasets: [{
-                data: data.values
+                data: data.values,
+                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'],
+                borderWidth: 0
             }]
         },
         options: {
-            responsive: true
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { position: 'bottom', labels: { color: '#ccc', boxWidth: 12 } } 
+            }
         }
     });
 }

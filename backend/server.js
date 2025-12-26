@@ -398,6 +398,38 @@ app.post('/api/add-sale', async (req, res) => {
   }
 });
 
+// KPI данные для модалки продавца (графики динамики и категорий)
+app.get('/api/kpi/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [[row]] = await pool.query(
+      'SELECT kpi_trend FROM seller_stats WHERE seller_id = ?',
+      [id]
+    );
+
+    if (!row || !row.kpi_trend) {
+      // Если нет данных — возвращаем пустые графики (чтобы фронт не падал)
+      return res.json({
+        salesOverTime: [],
+        categoryBreakdown: []
+      });
+    }
+
+    let trend = row.kpi_trend;
+    if (typeof trend === 'string') {
+      trend = JSON.parse(trend);  // Если хранится как строка
+    }
+
+    res.json(trend);
+  } catch (err) {
+    console.error('KPI route error for seller', id, err);
+    res.status(500).json({
+      salesOverTime: [],
+      categoryBreakdown: []
+    });
+  }
+});
+
 // ==================================================================
 // FALLBACK
 // ==================================================================

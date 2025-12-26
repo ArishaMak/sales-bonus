@@ -1148,7 +1148,7 @@ body {
   margin-bottom: 0.5em;
 }
 .form-group input {
-  width: 100%;
+  width: 99%;
   padding: 0.5em;
   border: 1px solid var(--gray);
   border-radius: 4px;

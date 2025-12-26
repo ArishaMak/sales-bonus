@@ -103,6 +103,18 @@ function analyzeSalesData(data, options = {}) {
       .map(([sku, qty]) => ({ sku, quantity: qty }));
   });
 
+  arr.forEach((s, idx, all) => {
+  s.bonus = calculateBonus(idx, all.length, s);
+  s.top_products = Object.entries(s.products_sales || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([sku, qty]) => ({ sku, quantity: qty }));
+
+  const plan = Number(s.plan || 0);
+  s.kpi = plan > 0 ? Math.round((s.revenue / plan) * 100) : 0;
+});
+
+
   return arr.map(s => ({
     seller_id: s.id,
     name: s.name,
@@ -113,7 +125,8 @@ function analyzeSalesData(data, options = {}) {
     bonus: Number(s.bonus || 0),
     department: s.department,
     updated_at: s.updated_at,
-    plan: s.plan
+    plan: s.plan,
+    kpi: s.kpi
   }));
 }
 
@@ -309,7 +322,7 @@ function renderTable(pageData, total, page, limit) {
 
   tbody.innerHTML = "";
   pageData.forEach(s => {
-    const kpi = s.plan ? ((s.revenue / s.plan) * 100).toFixed(0) : 0;
+    const kpi = s.kpi ?? (s.plan ? ((s.revenue / s.plan) * 100).toFixed(0) : 0);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${escapeHtml(s.name)}</td>
@@ -324,20 +337,27 @@ function renderTable(pageData, total, page, limit) {
     tbody.appendChild(tr);
   });
 
-  tbody.querySelectorAll(".open-seller").forEach(btn => {
+  // Внутри функции renderTable:
+tbody.querySelectorAll(".open-seller").forEach(btn => {
     btn.addEventListener("click", (e) => {
         const id = e.currentTarget.dataset.id;
-        const name = e.currentTarget.dataset.name || id;
-        // Находим полный объект продавца из allSellers
+        // Находим полный объект продавца
         const seller = allSellers.find(s => String(s.seller_id) === String(id));
-        if (seller) {
-            openSellerModal(seller);  // Передаём весь объект
+        
+        if (seller && typeof window.openSellerCard === 'function') {
+            // Вызываем ту самую функцию, которую мы написали в index.html
+            window.openSellerCard(seller); 
         } else {
-            // Fallback (редко)
-            openSellerModal({ seller_id: id, name });
+            console.error("Функция openSellerCard не найдена в window или продавец не найден");
         }
     });
 });
+
+// Найдите кнопку экспорта (замените на ваш ID, например "exportBtn" или "exportCsvBtn")
+const exportBtn = document.getElementById('exportBtn');  // Или querySelector('.export-button')
+if (exportBtn) {
+  exportBtn.addEventListener('click', exportToExcel);
+}
 
   const pages = Math.max(1, Math.ceil(total / limit));
   pagination.innerHTML = `
@@ -597,6 +617,46 @@ document.addEventListener('DOMContentLoaded', () => {
   toggleDashboardButton(); // Проверка видимости при загрузке
   loadAndRender();
 });
+
+/* ========== ЭКСПОРТ В EXCEL ========== */
+const exportBtn = document.getElementById('exportBtn');
+if (exportBtn) {
+  console.log('✅ Кнопка экспорта найдена');
+  exportBtn.addEventListener('click', () => {
+    console.log('🖱️ Клик по экспорту! Данные:', allSellers.length ? 'есть' : 'нет');
+    exportToExcel();
+  });
+} else {
+  console.error('❌ Кнопка #exportBtn НЕ найдена! Проверьте ID в HTML');
+}
+
+function exportToExcel() {
+  if (!allSellers || allSellers.length === 0) {
+    alert('Нет данных для экспорта');
+    console.warn('⚠ Нет данных в allSellers');
+    return;
+  }
+
+  console.log('🚀 Экспорт данных:', allSellers);
+
+  const data = allSellers.map(s => ({
+    'Продавец': s.name || 'Неизвестно',
+    'Выручка (₽)': Number(s.revenue || 0).toFixed(2),
+    'Прибыль (₽)': Number(s.profit || 0).toFixed(2),
+    'Продаж': s.sales_count || 0,
+    'KPI (%)': s.kpi || 0,
+    'Бонус (₽)': Number(s.bonus || 0).toFixed(2),
+    'Топ-товары': (s.top_products || []).map(tp => `${tp.sku} (${tp.quantity})`).join('; ')
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Продавцы");
+
+  const fileName = `ShopAnalytics_Продавцы_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+  console.log('✅ Файл скачан:', fileName);
+}
 
 // Экспорт для dashboard.js (reuse)
 export { loadData, analyzeSalesData, renderTopProductsSection, safeNum, escapeHtml };

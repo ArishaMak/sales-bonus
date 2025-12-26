@@ -22,6 +22,8 @@
     <link rel="stylesheet" href="./css/light.css" />
     <!-- Chart.js CDN в head -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Библиотека для экспорта в Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="page">
     <!-- Layout -->
@@ -96,7 +98,7 @@
                     <div class="section-header flexbox middle">
                         <h2>Результаты анализа</h2>
                         <div class="export-btn">
-                            <button class="btn btn-secondary">Экспорт CSV</button>
+                            <button id="exportBtn" class="btn btn-secondary">Экспорт в Excel</button>
                         </div>
                     </div>
                     <!-- Краткая сводка — с placeholders для дашборда -->
@@ -193,154 +195,187 @@
     <script type="module" src="./src/main.js"></script>
     <!-- JavaScript для управления модальными окнами -->
     <script type="module">
-        // Импорт для логина
-        import { loginUser } from "./src/modules/auth.js";
+    // Импорт для логина
+    import { loginUser } from "./src/modules/auth.js";
 
-        // Глобальные функции (делаем их доступными для onclick, но используем addEventListener)
-        window.openModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.style.display = 'flex';
-                modal.setAttribute('aria-modal', 'true');
-                modal.setAttribute('role', 'dialog');
-            }
-        };
+    // Хранилища для инстансов графиков (чтобы можно было их уничтожать при переключении)
+    let revenueChartInstance = null;
+    let categoryChartInstance = null;
 
-        window.closeModal = function(modalId) {
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.style.display = 'none';
-                modal.removeAttribute('aria-modal');
-                modal.removeAttribute('role');
-            }
-        };
+    // Глобальные функции для управления модальными окнами
+    window.openModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.setAttribute('aria-modal', 'true');
+            modal.setAttribute('role', 'dialog');
+        }
+    };
 
-        // Заглушки
-        window.showPage = function(pageId) {
-            console.log(`Навигация к странице: ${pageId}`);
-        };
+    window.closeModal = function(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.removeAttribute('aria-modal');
+            modal.removeAttribute('role');
+            
+            // Очистка графиков при закрытии, чтобы освободить память
+            if (revenueChartInstance) { revenueChartInstance.destroy(); revenueChartInstance = null; }
+            if (categoryChartInstance) { categoryChartInstance.destroy(); categoryChartInstance = null; }
+        }
+    };
 
-        window.openSellerCard = function(sellerData) {
-            console.log('Открытие карточки продавца:', sellerData);
-            const content = document.getElementById('sellerCardContent');
-            if (content) {
-                content.innerHTML = `<p>Детали продавца ${sellerData.name} будут здесь.</p>`;
-            }
-            openModal('sellerCardModal');
-        };
+    window.showPage = function(pageId) {
+        console.log(`Навигация к странице: ${pageId}`);
+    };
 
-        // Обработчик кнопки "Дашборд"
-        document.addEventListener('DOMContentLoaded', () => {
-            const userId = localStorage.getItem("userId");
-            const dashboardBtn = document.getElementById("dashboardBtn");
-            if (dashboardBtn) {
-                dashboardBtn.addEventListener("click", () => {
-                    if (!userId) {
-                        alert("Сначала войдите в аккаунт");
-                        openModal('loginModal');
-                        return;
-                    }
-                    window.location.href = "/dashboard.html";
-                });
-                // Скрыть кнопку, если не авторизован
-                if (!userId) {
-                    dashboardBtn.style.display = "none";
-                }
-            }
+    window.openSellerCard = async function(sellerData) {
+    // 1. Извлекаем ID (важно для запроса к API)
+    const sellerId = sellerData.seller_id || sellerData.id;
+    const content = document.getElementById('sellerCardContent');
+    
+    if (!content) return;
+    if (!sellerId) {
+        content.innerHTML = '<p style="color:red">Ошибка: ID продавца не найден в данных таблицы.</p>';
+        return;
+    }
 
-            // Обработчики кнопок "Войти" и "Регистрация" (замена onclick)
-            const loginBtn = document.getElementById("loginBtn");
-            const registerBtn = document.getElementById("registerBtn");
-            if (loginBtn) loginBtn.addEventListener("click", () => openModal('loginModal'));
-            if (registerBtn) registerBtn.addEventListener("click", () => openModal('registerModal'));
+    // 2. ПРИНУДИТЕЛЬНО создаем новую структуру модалки (убираем текст "Данные недоступны")
+    content.innerHTML = `
+        <div class="modal-header">
+            <h3>Статистика: ${sellerData.name || 'Продавец'}</h3>
+            <button class="close-button" onclick="closeModal('sellerCardModal')">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div class="summary-cards" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px;">
+                <div class="card">Выручка: <br><strong>${Number(sellerData.revenue || 0).toLocaleString()} ₽</strong></div>
+                <div class="card">Продаж: <br><strong>${sellerData.sales_count || 0}</strong></div>
+                <div class="card">KPI: <br><strong>${sellerData.kpi || 0}%</strong></div>
+            </div>
 
-            // Закрытие модалок по крестику
-            const closeLoginBtn = document.getElementById("closeLoginBtn");
-            const closeRegisterBtn = document.getElementById("closeRegisterModal");
-            if (closeLoginBtn) closeLoginBtn.addEventListener("click", () => closeModal('loginModal'));
-            if (closeRegisterBtn) closeRegisterBtn.addEventListener("click", () => closeModal('registerModal'));
+            <div style="margin-bottom: 25px;">
+                <h4 style="color: #fff; margin-bottom: 10px;">Динамика выручки</h4>
+                <div style="height: 220px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px;">
+                    <canvas id="revenueChartCanvas"></canvas>
+                </div>
+            </div>
+            <div>
+                <h4 style="color: #fff; margin-bottom: 10px;">Категории товаров</h4>
+                <div style="height: 220px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px;">
+                    <canvas id="categoryChartCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+    `;
 
-            // Закрытие по клику вне модалки
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target.id === modal.id) {
-                        closeModal(modal.id);
-                    }
-                });
-            });
+    // Показываем модалку сразу после создания структуры
+    openModal('sellerCardModal');
 
-            // Обработчик формы логина
-            const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const loginMessage = document.getElementById('loginMessage');
-                    loginMessage.textContent = '';
-                    loginMessage.style.color = '';
+    // 3. Загружаем данные для графиков с бэкенда
+    try {
+        const response = await fetch(`/api/kpi/${sellerId}`);
+        const kpiData = await response.json();
 
-                    const email = document.getElementById('loginEmail').value;
-                    const password = document.getElementById('loginPassword').value;
+        if (kpiData.error) throw new Error(kpiData.error);
 
-                    try {
-                        const data = await loginUser({ email, password });
-                        loginMessage.textContent = `Вход успешен! Добро пожаловать, ${data.name || email}!`;
-                        loginMessage.style.color = 'green';
-                        setTimeout(() => {
-                            closeModal('loginModal');
-                            loginForm.reset();
-                            window.location.href = "/dashboard.html";
-                        }, 1500);
-                    } catch (error) {
-                        loginMessage.textContent = error.message || 'Ошибка входа. Проверьте данные.';
-                        loginMessage.style.color = 'red';
-                        console.error('Login failed:', error);
-                    }
-                });
-            }
-
-            // Обработчик формы регистрации
-            const registerForm = document.getElementById('registerForm');
-            if (registerForm) {
-                registerForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const regMessage = document.getElementById('regMessage');
-                    regMessage.textContent = '';
-                    regMessage.style.color = '';
-
-                    const email = document.getElementById('regEmail').value;
-                    const password = document.getElementById('regPassword').value;
-                    const name = document.getElementById('regName').value;
-
-                    try {
-                        const response = await fetch('/api/register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email, password, name }),
-                        });
-                        const data = await response.json();
-
-                        if (response.ok) {
-                            regMessage.textContent = `Регистрация успешна! Добро пожаловать, ${data.name || name}!`;
-                            regMessage.style.color = 'green';
-                            setTimeout(() => {
-                                closeModal('registerModal');
-                                registerForm.reset();
-                                window.location.href = "/dashboard.html";
-                            }, 1500);
-                        } else {
-                            const errorMessage = data.message || data.error || 'Ошибка регистрации. Попробуйте снова.';
-                            regMessage.textContent = errorMessage;
-                            regMessage.style.color = 'red';
-                            console.error('Registration failed:', errorMessage);
-                        }
-                    } catch (error) {
-                        regMessage.textContent = 'Ошибка сети. Проверьте соединение с сервером.';
-                        regMessage.style.color = 'red';
-                        console.error('Network or critical error:', error);
-                    }
-                });
-            }
+        // --- Отрисовка ГРАФИКА 1 (Выручка) ---
+        const revCtx = document.getElementById('revenueChartCanvas').getContext('2d');
+        if (window.revChart) window.revChart.destroy();
+        window.revChart = new Chart(revCtx, {
+            type: 'line',
+            data: {
+                labels: kpiData.salesOverTime?.labels || [],
+                datasets: [{
+                    label: 'Выручка',
+                    data: kpiData.salesOverTime?.values || [],
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
         });
-    </script>
+
+        // --- Отрисовка ГРАФИКА 2 (Категории) ---
+        const catCtx = document.getElementById('categoryChartCanvas').getContext('2d');
+        if (window.catChart) window.catChart.destroy();
+        window.catChart = new Chart(catCtx, {
+            type: 'doughnut',
+            data: {
+                labels: kpiData.categoryBreakdown?.labels || [],
+                datasets: [{
+                    data: kpiData.categoryBreakdown?.values || [],
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+    } catch (err) {
+        console.error("Ошибка загрузки KPI:", err);
+        // Если API не ответило, выводим ошибку в места графиков
+        document.getElementById('revenueChartCanvas').parentElement.innerHTML = 
+            `<p style="color: #666; text-align: center; padding-top: 80px;">Данные для графиков не найдены в базе</p>`;
+    }
+};
+
+    // Слушатели событий при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+        const userId = localStorage.getItem("userId");
+        const dashboardBtn = document.getElementById("dashboardBtn");
+
+        if (dashboardBtn) {
+            dashboardBtn.addEventListener("click", () => {
+                if (!userId) {
+                    alert("Сначала войдите в аккаунт");
+                    openModal('loginModal');
+                    return;
+                }
+                window.location.href = "/dashboard.html";
+            });
+            if (!userId) dashboardBtn.style.display = "none";
+        }
+
+        // Кнопки входа и регистрации
+        document.getElementById("loginBtn")?.addEventListener("click", () => openModal('loginModal'));
+        document.getElementById("registerBtn")?.addEventListener("click", () => openModal('registerModal'));
+
+        // Кнопки закрытия
+        document.getElementById("closeLoginBtn")?.addEventListener("click", () => closeModal('loginModal'));
+        document.getElementById("closeRegisterModal")?.addEventListener("click", () => closeModal('registerModal'));
+
+        // Закрытие по клику на оверлей
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal(modal.id);
+            });
+        });
+
+        // Обработка формы логина
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = document.getElementById('loginMessage');
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+
+                try {
+                    const data = await loginUser({ email, password });
+                    msg.textContent = `Успешно! Привет, ${data.name || email}`;
+                    msg.style.color = 'green';
+                    setTimeout(() => {
+                        closeModal('loginModal');
+                        window.location.href = "/dashboard.html";
+                    }, 1000);
+                } catch (error) {
+                    msg.textContent = error.message;
+                    msg.style.color = 'red';
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>

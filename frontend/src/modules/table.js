@@ -14,20 +14,24 @@ export function escapeHtml(str = "") {
 export function renderSellerRow(s) {
   const kpi = s.plan ? ((s.revenue / s.plan) * 100).toFixed(0) : 0;
   const topProdsStr = (s.top_products || []).slice(0, 3).map(p => `${escapeHtml(p.sku)} (${p.quantity})`).join(", ") + (s.top_products.length > 3 ? " и др." : "");
+  
+  // Подготавливаем данные для передачи в функцию в виде строки JSON
+  // Экранируем кавычки, чтобы не сломать HTML-атрибут
+  const sellerJson = JSON.stringify(s).replace(/"/g, '&quot;');
+
   return `
     <tr>
       <td>${escapeHtml(s.name)}</td>
-      <td>${Number(s.revenue || 0).toFixed(2)}</td>
-      <td>${Number(s.profit || 0).toFixed(2)}</td>
+      <td>${Number(s.revenue || 0).toLocaleString()}</td>
+      <td>${Number(s.profit || 0).toLocaleString()}</td>
       <td>${s.sales_count || 0}</td>
       <td>${kpi}%</td>
-      <td>${Number(s.bonus || 0).toFixed(2)}</td>
+      <td>${Number(s.bonus || 0).toLocaleString()}</td>
       <td title="${(s.top_products || []).map(p => `${p.sku} (${p.quantity})`).join(', ')}">${topProdsStr}</td>
       <td>
         <button 
-          class="btn btn-secondary open-seller"
-          data-id="${s.seller_id}"
-          data-name="${escapeHtml(s.name)}"
+          class="btn btn-secondary"
+          onclick='window.openSellerCard(${sellerJson})'
         >
           Открыть
         </button>

@@ -4,16 +4,11 @@ export function renderSellerTable(sellers) {
     // Функция для форматирования списка товаров
     const formatTopProducts = (products) => {
         if (!products || products.length === 0) return '—';
-        // Предполагаем, что s.top_products - это строка или массив, который нужно отформатировать.
-        // Если это строка (как на скриншоте), просто вернем ее.
-        // В реальном проекте здесь был бы сложный парсинг и форматирование.
-        return products;
+       return products;
     };
 
     // Функция для создания кнопки "Открыть"
     const createActionButton = (sellerId) => {
-        // Мы используем data-атрибут для привязки ID к кнопке.
-        // Обработчик события должен быть добавлен в main.js или render.js
         return `<button class="btn btn-view-seller" data-seller-id="${sellerId}">Открыть</button>`;
     };
 
@@ -55,8 +50,4 @@ export function renderSellerTable(sellers) {
         </div>
     `;
     
-    // ПРИМЕЧАНИЕ: Добавьте здесь или в main.js логику для открытия модалки
-    // document.querySelectorAll('.btn-view-seller').forEach(button => {
-    //     button.onclick = () => openSellerCard(button.dataset.sellerId);
-    // });
 }
