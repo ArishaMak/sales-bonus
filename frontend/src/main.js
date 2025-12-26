@@ -567,7 +567,7 @@ function toggleDashboardButton() {
 
   const userId = localStorage.getItem("userId");
   if (userId) {
-    dashboardBtn.style.display = "inline"; // Показать, если авторизован
+    dashboardBtn.style.display = "flex"; // Показать, если авторизован
     console.log('✅ Dashboard button shown (user logged in)');
   } else {
     dashboardBtn.style.display = "none"; // Скрыть, если не авторизован
