@@ -283,30 +283,23 @@ function renderTopProductsSection(topProds = []) {
 }
 
 /* ========== Рендеры UI ========== */
+/* ========== Рендеры UI (ИСПРАВЛЕНО) ========== */
 function populateFilters(catalogs) {
   const sellerFilter = document.getElementById("sellerFilter");
-  const skuFilter = document.getElementById("skuFilter");
-  if (!sellerFilter || !skuFilter) return;
+  if (!sellerFilter) return;
 
-  sellerFilter.innerHTML = '<option value="">Все продавцы</option>' +
-    (catalogs.sellers || []).map(s => `<option value="${escapeHtml(s.seller_id)}">${escapeHtml(s.first_name ?? "")} ${escapeHtml(s.last_name ?? "")}</option>`).join("");
+  sellerFilter.innerHTML =
+    '<option value="">Все продавцы</option>' +
+    (catalogs.sellers || []).map(s =>
+      `<option value="${escapeHtml(s.seller_id)}">
+        ${escapeHtml(s.first_name ?? "")} ${escapeHtml(s.last_name ?? "")}
+      </option>`
+    ).join("");
 
-  skuFilter.innerHTML = '<option value="">Все товары</option>' +
-    (catalogs.products || []).map(p => `<option value="${escapeHtml(p.sku)}">${escapeHtml(p.name)}</option>`).join("");
-
-  const dlId = "searchList";
-  let dl = document.getElementById(dlId);
-  if (!dl) {
-    dl = document.createElement("datalist");
-    dl.id = dlId;
-    document.body.appendChild(dl);
+  // ⬇️ ВАЖНО: вызывать ТОЛЬКО ПОСЛЕ заполнения select
+  if (typeof window.updateCustomSellers === 'function') {
+    window.updateCustomSellers();
   }
-  const options = new Set();
-  (catalogs.sellers || []).forEach(s => options.add(`${s.first_name ?? ""} ${s.last_name ?? ""}`.trim()));
-  (catalogs.customers || []).forEach(c => options.add(`${c.first_name ?? ""} ${c.last_name ?? ""}`.trim()));
-  dl.innerHTML = Array.from(options).map(t => `<option value="${escapeHtml(t)}">`).join("");
-  const searchInput = document.getElementById("search");
-  if (searchInput) searchInput.setAttribute("list", dlId);
 }
 
 function renderSummary(totalSellers) {
@@ -459,7 +452,10 @@ async function loadAndRender() {
 
     // Финальный рендер UI
     populateFilters({ sellers: data.sellers, products: data.products, customers: data.customers });
-    
+    /*if (window.updateCustomSellers) {
+    window.updateCustomSellers();
+    }*/
+
     const firstPage = allSellers.slice(0, SELLERS_PER_PAGE);
     currentPage = 1;
     renderSummary(allSellers.length);
@@ -481,32 +477,30 @@ async function loadAndRender() {
 function setupUiHandlers() {
   const applyBtn = document.getElementById("applyFilters");
   const resetBtn = document.getElementById("resetFilters");
+  const trigger = document.querySelector('.custom-select-trigger');
+
   if (applyBtn) {
     applyBtn.addEventListener("click", () => {
+      // 1. Берем текст из инпута
       queryParams.search = (document.getElementById("search")?.value || "").trim();
+      
+      // 2. Берем ID продавца из скрытого селекта (куда его кладет наш кастомный список)
       queryParams.sellerId = (document.getElementById("sellerFilter")?.value || "");
-      queryParams.sku = (document.getElementById("skuFilter")?.value || "");
-      console.log('🔄 Applying filters:', queryParams);
-      loadAndRender();
+      
+      console.log('🔄 Применяем фильтры:', queryParams);
+      loadAndRender(); // Перезагружаем таблицу
     });
-  } else {
-    console.warn('⚠ #applyFilters not found');
   }
 
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
-      const searchInput = document.getElementById("search");
-      const sellerFilter = document.getElementById("sellerFilter");
-      const skuFilter = document.getElementById("skuFilter");
-      if (searchInput) searchInput.value = "";
-      if (sellerFilter) sellerFilter.value = "";
-      if (skuFilter) skuFilter.value = "";
+      document.getElementById("search").value = "";
+      document.getElementById("sellerFilter").value = "";
+      trigger.textContent = "Выберите продавца"; // Сбрасываем текст кнопки
+      
       queryParams = { page: 1, limit: 9999, search: "", sellerId: "", sku: "" };
-      console.log('🔄 Reset filters');
       loadAndRender();
     });
-  } else {
-    console.warn('⚠ #resetFilters not found');
   }
 }
 
@@ -581,41 +575,109 @@ function toggleDashboardButton() {
   }
 }
 
-/* ========== Обработчик клика "Дашборд" ========== */
-function setupDashboardButton() {
-  const dashboardBtn = document.getElementById("dashboardBtn");
-  if (!dashboardBtn) return;
+/* ========== Управление кастомным селектом (Исправлено) ========== */
+/* ========== Управление кастомным селектом (FIXED) ========== */
+function initCustomSelect() {
+    const wrapper = document.getElementById('sellerCustomWrapper');
+    if (!wrapper) return;
 
-  dashboardBtn.addEventListener("click", () => {
-    const userId = localStorage.getItem("userId");
-    if (!userId) {
-      alert("Сначала войдите в аккаунт");
-      // Открыть модалку логина (если функция доступна)
-      if (typeof openModal === 'function') {
-        openModal('loginModal');
-      }
-      return;
-    }
-    window.location.href = "/dashboard.html";
-  });
+    const trigger = wrapper.querySelector('.custom-select-trigger');
+    const container = wrapper.querySelector('.custom-options-container');
+    const realSelect = document.getElementById('sellerFilter');
+
+    if (!trigger || !container || !realSelect) return;
+
+    // Открытие / закрытие
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        document.querySelectorAll('.custom-options-container.open').forEach(c => {
+            if (c !== container) c.classList.remove('open');
+        });
+
+        container.classList.toggle('open');
+    });
+
+    // Закрытие при клике вне
+    document.addEventListener('click', () => {
+        container.classList.remove('open');
+    });
+
+    // ===== РЕНДЕР КАСТОМНОГО СПИСКА =====
+    window.updateCustomSellers = function () {
+        container.innerHTML = '';
+
+        Array.from(realSelect.options).forEach(opt => {
+            const div = document.createElement('div');
+            div.className = 'custom-option';
+            div.textContent = opt.textContent;
+            div.dataset.value = opt.value;
+
+            // "Все продавцы" — на две колонки
+            if (opt.value === '' || opt.value === '0') {
+                div.style.gridColumn = 'span 2';
+            }
+
+            // Активный
+            if (realSelect.value === opt.value) {
+                div.classList.add('selected');
+                trigger.textContent = opt.textContent;
+            }
+
+            div.addEventListener('click', (e) => {
+                e.stopPropagation();
+
+                realSelect.value = opt.value;
+                trigger.textContent = opt.textContent;
+                container.classList.remove('open');
+
+                container.querySelectorAll('.custom-option')
+                    .forEach(el => el.classList.remove('selected'));
+
+                div.classList.add('selected');
+
+                realSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            container.appendChild(div);
+        });
+
+        console.log(`✅ Custom select rendered: ${realSelect.options.length} sellers`);
+    };
 }
 
-/* ========== Listener на изменения localStorage (для динамики после logout) ========== */
-window.addEventListener('storage', (e) => {
-  if (e.key === 'userId') {
-    toggleDashboardButton(); // Перепроверить видимость при изменении
-  }
-});
+/* ========== Управление Дашбордом ========== */
+function setupDashboardButton() {
+    const dashboardBtn = document.getElementById("dashboardBtn");
+    if (!dashboardBtn) return;
+
+    dashboardBtn.onclick = () => {
+        const userId = localStorage.getItem("userId");
+        if (!userId) {
+            alert("Сначала войдите в аккаунт");
+            if (typeof openModal === 'function') openModal('loginModal');
+            return;
+        }
+        window.location.href = "/dashboard.html";
+    };
+}
 
 /* ========== INIT ========= */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('✅ DOM loaded, starting init');
   animateHeadline();
   animateMenuLinks();
+  initCustomSelect();
   setupUiHandlers();
   setupDashboardButton(); // Настройка клика
   toggleDashboardButton(); // Проверка видимости при загрузке
   loadAndRender();
+});
+
+document.addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'exportBtn') {
+        exportToExcel();
+    }
 });
 
 /* ========== ЭКСПОРТ В EXCEL ========== */

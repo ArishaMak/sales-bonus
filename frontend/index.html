@@ -51,92 +51,97 @@
         </header>
         <!-- Hero + Фильтры -->
         <main class="hero">
-            <div class="cosmic-bg">
-                <div class="stars"></div>
-                <div class="stars2"></div>
-                <div class="stars3"></div>
-                <div class="background-planet"></div>
-                <div class="mars-rings-front"></div>
-                <div class="mars-rings"></div>
-            </div>
-            <div class="wrapper-hero">
-                <div class="wrapper">
-                    <div class="h_part">
-                        <div class="h1_box h_part">
-                            <h1 class="h1" data-text="Анализ продаж в реальном времени">
-                                Анализ продаж в реальном времени
-                            </h1>
-                        </div>
-                        <p class="header__paragraph" style="font-size: 1.6em; color: var(--gray); max-width: 50ch; margin: 1.5em 0;">
-                            Аналитика выручки, бонусов и топ-продуктов по продавцам. Фильтруйте, ищите, экспортируйте.
-                        </p>
-                        <div>
-                            <a href="#filters" class="btn btn-primary">Начать анализ</a>
-                        </div>
-                    </div>
-                    <!-- Фильтры -->
-                    <section id="filters" class="filters-panel">
-                        <div class="filter-group">
-                            <input type="text" id="search" placeholder="Поиск по продавцу или покупателю" class="filter-input">
-                        </div>
-                        <div class="filter-group">
-                            <select id="sellerFilter" class="filter-select"></select>
-                        </div>
-                        <div class="filter-group">
-                            <select id="skuFilter" class="filter-select"></select>
-                        </div>
-                        <div class="filter-group">
-                            <button id="applyFilters" class="btn btn-primary">Применить</button>
-                            <button id="resetFilters" class="btn btn-secondary">Сброс</button>
-                        </div>
-                    </section>
+    <div class="cosmic-bg">
+        <div class="stars"></div>
+        <div class="stars2"></div>
+        <div class="stars3"></div>
+        <div class="background-planet"></div>
+        <div class="mars-rings-front"></div>
+        <div class="mars-rings"></div>
+    </div>
+    <div class="wrapper-hero">
+        <div class="wrapper">
+            <div class="h_part">
+                <div class="h1_box">
+                    <h1 class="h1" data-text="Анализ продаж в реальном времени">
+                        <span>Анализ продаж в реальном времени</span>
+                    </h1>
+                </div>
+                <p class="header__paragraph">
+                    Аналитика выручки, бонусов и топ-продуктов по продавцам. Фильтруйте, ищите, экспортируйте.
+                </p>
+                <div>
+                    <a href="#filters" class="btn btn-primary">Начать анализ</a>
                 </div>
             </div>
-            <!-- Результаты (анализ продавцов) -->
-            <section id="results" class="results-section">
-                <div class="wrapper">
-                    <div class="section-header flexbox middle">
-                        <h2>Результаты анализа</h2>
-                        <div class="export-btn">
-                            <button id="exportBtn" class="btn btn-secondary">Экспорт в Excel</button>
-                        </div>
-                    </div>
-                    <!-- Краткая сводка — с placeholders для дашборда -->
-                    <div id="summary" class="summary-cards">
-                        <div class="card">Продукты: <span id="totalProducts">0</span></div>
-                        <div class="card">Записи: <span id="totalRecords">0</span></div>
-                        <div class="card">Клиенты: <span id="totalCustomers">0</span></div>
-                    </div>
-                    <!-- Таблица -->
-                    <div class="table-container">
-                        <table id="reportTable" class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Продавец</th>
-                                    <th>Выручка</th>
-                                    <th>Прибыль</th>
-                                    <th>Продаж</th>
-                                    <th>KPI</th>
-                                    <th>Бонус</th>  
-                                    <th>Топ-товары</th>
-                                    <th>Действия</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sellerTableBody">
-                                <!-- ... здесь вставляются строки из table.js ... -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="pagination">
-                        <!-- Пагинация генерируется JS -->
-                    </div>
-                    <!-- Топ-товары -->
-                    <div id="topProductsSection">
-                        <!-- Генерируется JS -->
-                    </div>
+
+            <section id="filters" class="filters-panel animate">
+    <div class="filter-group">
+        <input type="text" id="search" placeholder="Поиск по продавцу или покупателю" list="searchList">
+        
+        <div class="custom-select-wrapper" id="sellerCustomWrapper">
+            <div class="custom-select-trigger">Выберите продавца</div>
+            <div class="custom-options-container">
                 </div>
-            </section>
-        </main>
+        </div>
+        <select id="sellerFilter" style="display: none;"></select>
+    </div>
+    
+    <div class="filter-actions">
+        <button id="applyFilters" class="btn btn-primary">Применить</button>
+        <button id="resetFilters" class="btn btn-secondary">Сброс</button>
+    </div>
+</section>
+        </div>
+    </div>
+
+    <section id="results" class="results-section">
+        <div class="wrapper">
+            <div class="section-header flexbox middle">
+                <h2 class="h5">Результаты анализа</h2>
+                <div class="export-btn">
+                    <button id="exportBtn" class="btn btn-secondary">Экспорт в Excel</button>
+                </div>
+            </div>
+
+            <div id="summary" class="summary-cards">
+                <div class="summary-card">
+                    <h3>Продукты</h3>
+                    <p id="totalProducts">0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Записи</h3>
+                    <p id="totalRecords">0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Клиенты</h3>
+                    <p id="totalCustomers">0</p>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="reportTable" class="table">
+                    <thead>
+                        <tr>
+                            <th>Продавец</th>
+                            <th>Выручка</th>
+                            <th>Прибыль</th>
+                            <th>Продаж</th>
+                            <th>KPI</th>
+                            <th>Бонус</th>  
+                            <th>Топ-товары</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sellerTableBody">
+                        </tbody>
+                </table>
+            </div>
+            <div id="pagination"></div>
+            <div id="topProductsSection"></div>
+        </div>
+    </section>
+</main>
     </div>
     <!-- Модалка продавца -->
     <div id="sellerCardModal" class="modal">
